@@ -2,7 +2,9 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Web\LocationController;
+use App\Http\Controllers\Web\PlaceSearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +20,8 @@ use App\Http\Controllers\Web\LocationController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::post('/places/search', [PlaceSearchController::class, 'search']);
 
 Route::get('/distritos', [LocationController::class, 'distritos']);
 Route::get('/municipios', [LocationController::class, 'municipios']);

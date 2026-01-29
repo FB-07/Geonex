@@ -22,36 +22,27 @@ class LocationController extends Controller
     public function municipios(Request $request)
     {
         $distrito = $request->query('distrito');
-
-        if (!$distrito) {
-            return response()->json([]);
-        }
+        if (!$distrito) return response()->json([]);
 
         return response()->json(
-            Municipio::whereHas('distrito', function ($q) use ($distrito) {
-                $q->where('nome', $distrito);
-            })
-            ->orderBy('nome')
-            ->pluck('nome')
-            ->values()
+            Municipio::join('distritos', 'municipios.distrito_id', '=', 'distritos.id')
+                ->where('distritos.nome', $distrito)
+                ->orderBy('municipios.nome')
+                ->pluck('municipios.nome')
         );
     }
+
 
     public function freguesias(Request $request)
     {
         $municipio = $request->query('municipio');
-
-        if (!$municipio) {
-            return response()->json([]);
-        }
+        if (!$municipio) return response()->json([]);
 
         return response()->json(
-            Freguesia::whereHas('municipio', function ($q) use ($municipio) {
-                $q->where('nome', $municipio);
-            })
-            ->orderBy('nome')
-            ->pluck('nome')
-            ->values()
+            Freguesia::join('municipios', 'freguesias.municipio_id', '=', 'municipios.id')
+                ->where('municipios.nome', $municipio)
+                ->orderBy('freguesias.nome')
+                ->pluck('freguesias.nome')
         );
     }
 }

@@ -41,7 +41,7 @@
             <select id="freguesias-select" disabled class="block w-full min-h-9 mt-1 ml-1 rounded-md border-0 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-proximo-600 text-sm leading-6">
                 <option value="" disabled selected>Selecione uma das opções</option>
             </select>
-        </div>
+        </div>  
 
         <div id="nofiltro" class="hidden flex items-center justify-center mt-1.5 mb-1 pl-1 cursor-pointer">
             <a id="btn-limpar" class="flex items-center bg-red-600 hover:bg-red-500 backdrop-blur border shadow-md rounded-full py-1.5 px-2.5 gap-1 text-gray-100 hover:text-gray-50">

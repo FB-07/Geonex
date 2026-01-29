@@ -2,6 +2,9 @@ let map;
 let service;
 let markers = [];
 let userCircle = null;
+let municipiosReqId = 0;
+let freguesiasReqId = 0;
+
 
 const PORTUGAL_CENTER = { lat: 39.9, lng: -8.0 };
 const PORTUGAL_ZOOM = 7;
@@ -157,52 +160,64 @@ function clearMarkers() {
   markers = [];
 }
 
-function searchPlaces() {
+async function searchPlaces() {
   const input = el("search");
-  if (!input || !service) return;
+  if (!input) return;
 
   const query = input.value.trim();
   if (!query) return;
 
   onSearch(query);
-
   clearMarkers();
 
-  service.textSearch(
-    {
-      query,
-      location: { lat: 39.3999, lng: -8.2245 },
-      radius: 500000,
-    },
-    (results, status, pagination) => {
-      if (
-        status !== google.maps.places.PlacesServiceStatus.OK ||
-        !results?.length
-      )
-        return;
+  let res;
+  try {
+    res = await fetch("/api/places/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        lat: 39.3999,
+        lng: -8.2245,
+        radius: 500000,
+      }),
+    });
+  } catch (e) {
+    console.error("Network error:", e);
+    return;
+  }
 
-      const bounds = new google.maps.LatLngBounds();
+  if (!res.ok) {
+    const txt = await res.text();
+    console.error("API error:", res.status, txt);
+    return;
+  }
 
-      results.forEach((place) => {
-        if (!place.geometry?.location) return;
+  const data = await res.json();
+  console.log("source:", data.source);
 
-        const marker = new google.maps.Marker({
-          map,
-          position: place.geometry.location,
-          title: place.name,
-        });
+  const places = data.places || [];
+  if (!places.length) return;
 
-        markers.push(marker);
-        bounds.extend(place.geometry.location);
-      });
+  const bounds = new google.maps.LatLngBounds();
 
-      map.fitBounds(bounds);
+  places.forEach((p) => {
+    const pos = { lat: Number(p.lat), lng: Number(p.lng) };
 
-      if (pagination?.hasNextPage) {
-        setTimeout(() => pagination.nextPage(), 1500);
-      }
-    }
-  );
+    const marker = new google.maps.Marker({
+      map,
+      position: pos,
+      title: p.name,
+    });
+
+    markers.push(marker);
+    bounds.extend(pos);
+  });
+
+  map.fitBounds(bounds);
 }
 
 function mostrarLocalizacaoNoMapa() {
@@ -393,19 +408,30 @@ function initFiltros() {
     resetFreguesias();
     if (!distrito) return;
 
-    const municipios = await fetchMunicipios(distrito);
-
-    municipioSelect.disabled = false;
-    municipioSelect.innerHTML = placeholderOption();
-
-    municipios.forEach((m) => {
-      const opt = document.createElement("option");
-      opt.value = m;
-      opt.textContent = m;
-      municipioSelect.appendChild(opt);
-    });
-
     show(municipioDiv);
+    municipioSelect.disabled = true;
+    municipioSelect.innerHTML = placeholderOption("A carregar municípios...");
+
+    const myId = ++municipiosReqId;
+
+    try {
+      const municipios = await fetchMunicipios(distrito);
+
+      if (myId !== municipiosReqId) return;
+
+      municipioSelect.innerHTML = placeholderOption();
+      municipios.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        municipioSelect.appendChild(opt);
+      });
+
+      municipioSelect.disabled = false;
+    } catch (err) {
+      if (myId !== municipiosReqId) return;
+      municipioSelect.innerHTML = placeholderOption("Erro a carregar municípios");
+    }
   });
 
   municipioSelect?.addEventListener("change", async (e) => {
@@ -414,20 +440,32 @@ function initFiltros() {
     resetFreguesias();
     if (!municipio) return;
 
-    const freguesias = await fetchFreguesias(municipio);
-
-    freguesiaSelect.disabled = false;
-    freguesiaSelect.innerHTML = placeholderOption();
-
-    freguesias.forEach((f) => {
-      const opt = document.createElement("option");
-      opt.value = f;
-      opt.textContent = f;
-      freguesiaSelect.appendChild(opt);
-    });
-
     show(freguesiaDiv);
+    freguesiaSelect.disabled = true;
+    freguesiaSelect.innerHTML = placeholderOption("A carregar freguesias...");
+
+    const myId = ++freguesiasReqId;
+
+    try {
+      const freguesias = await fetchFreguesias(municipio);
+
+      if (myId !== freguesiasReqId) return;
+
+      freguesiaSelect.innerHTML = placeholderOption();
+      freguesias.forEach((f) => {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        freguesiaSelect.appendChild(opt);
+      });
+
+      freguesiaSelect.disabled = false;
+    } catch (err) {
+      if (myId !== freguesiasReqId) return;
+      freguesiaSelect.innerHTML = placeholderOption("Erro a carregar freguesias");
+    }
   });
+
 
   /*freguesiaSelect?.addEventListener("change", (e) => {
     const freguesia = e.target.value;
