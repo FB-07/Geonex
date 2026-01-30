@@ -68,6 +68,10 @@
         <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Recentes</p>
         <div id="recentList"></div>
     </div>
+    
+    <span id="noRecent" class="hidden">
+        <x-heroicon-o-x-circle class="w-6 h-6 text-red-500 hover:text-red-700 cursor-pointer"/>
+    </span>
 
     <div>
         <div id="map" style="height: 77.5vh; width: 75.5vw;"></div>

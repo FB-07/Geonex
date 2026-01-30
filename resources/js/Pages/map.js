@@ -5,7 +5,6 @@ let userCircle = null;
 let municipiosReqId = 0;
 let freguesiasReqId = 0;
 
-
 const PORTUGAL_CENTER = { lat: 39.9, lng: -8.0 };
 const PORTUGAL_ZOOM = 7;
 
@@ -17,7 +16,11 @@ const RECENTS_KEY = "recent_searches";
 const MAX_RECENTS = 10;
 
 function getRecents() {
-  return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
+  try {
+    return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 
 function saveRecent(term) {
@@ -25,11 +28,27 @@ function saveRecent(term) {
   if (!term) return;
 
   let recents = getRecents();
-  recents = recents.filter((r) => r.toLowerCase() !== term.toLowerCase());
+  recents = recents.filter((r) => (r || "").toLowerCase() !== term.toLowerCase());
   recents.unshift(term);
   recents = recents.slice(0, MAX_RECENTS);
 
   localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+}
+
+function removeRecent(term) {
+  term = (term || "").trim();
+  if (!term) return;
+
+  let recents = getRecents();
+  recents = recents.filter((r) => (r || "").toLowerCase() !== term.toLowerCase());
+
+  if (recents.length) {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+  } else {
+    localStorage.removeItem(RECENTS_KEY);
+  }
+
+  renderRecents();
 }
 
 function renderRecents() {
@@ -47,12 +66,34 @@ function renderRecents() {
 
   container.innerHTML = "";
 
+  const iconTemplate = el("noRecent");
+
   recents.forEach((term) => {
-    const div = document.createElement("div");
-    div.className = "cursor-pointer p-1 hover:bg-gray-200 rounded text-sm";
-    div.textContent = term;
-    div.dataset.q = term;
-    container.appendChild(div);
+    const row = document.createElement("div");
+    row.className =
+      "flex items-center justify-between gap-2 p-1 hover:bg-gray-100 rounded";
+
+    const text = document.createElement("span");
+    text.className = "cursor-pointer text-sm truncate";
+    text.textContent = term;
+    text.dataset.q = term;
+
+    let icon;
+    if (iconTemplate) {
+      icon = iconTemplate.cloneNode(true);
+      icon.classList.remove("hidden");
+    } else {
+      icon = document.createElement("span");
+      icon.textContent = "✕";
+      icon.className = "text-red-500 hover:text-red-700 cursor-pointer";
+      icon.id = "noRecent";
+    }
+
+    icon.dataset.term = term;
+
+    row.appendChild(text);
+    row.appendChild(icon);
+    container.appendChild(row);
   });
 }
 
@@ -80,6 +121,14 @@ function initRecent() {
   document.addEventListener("click", () => box?.classList.add("hidden"));
 
   list?.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    const removeBtn = e.target.closest("#noRecent");
+    if (removeBtn) {
+      removeRecent(removeBtn.dataset.term);
+      return;
+    }
+
     const item = e.target.closest("[data-q]");
     if (!item) return;
 
@@ -103,9 +152,7 @@ function loadGoogleMaps() {
     const key = window.APP?.googleMapsKey;
     if (!key) {
       reject(
-        new Error(
-          "Google Maps API key não encontrada (window.APP.googleMapsKey)."
-        )
+        new Error("Google Maps API key não encontrada (window.APP.googleMapsKey).")
       );
       return;
     }
@@ -118,8 +165,7 @@ function loadGoogleMaps() {
     )}&libraries=places&callback=__initMapLoaded`;
     script.async = true;
     script.defer = true;
-    script.onerror = () =>
-      reject(new Error("Falha ao carregar Google Maps script."));
+    script.onerror = () => reject(new Error("Falha ao carregar Google Maps script."));
     document.head.appendChild(script);
   });
 }
@@ -177,7 +223,7 @@ async function searchPlaces() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         query,
@@ -197,7 +243,7 @@ async function searchPlaces() {
   }
 
   const data = await res.json();
-  console.log("source:", data.source, "count:", data.places.length);
+  console.log("source:", data.source, "count:", (data.places || []).length);
 
   const places = data.places || [];
   if (!places.length) return;
@@ -473,7 +519,6 @@ function initFiltros() {
       freguesiaSelect.innerHTML = placeholderOption("Erro a carregar freguesias");
     }
   });
-
 
   /*freguesiaSelect?.addEventListener("change", (e) => {
     const freguesia = e.target.value;

@@ -47,13 +47,20 @@ class PlaceSearchController extends Controller
         ];
 
         if (isset($data['lat'], $data['lng'], $data['radius'])) {
-            $body['locationBias'] = [
-                'circle' => [
-                    'center' => [
-                        'latitude'  => (float) $data['lat'],
-                        'longitude' => (float) $data['lng'],
+            $body = [
+                'textQuery'   => $data['query'],
+                'regionCode'  => 'PT',
+                'locationRestriction' => [
+                    'rectangle' => [
+                        'low' => [ 
+                            'latitude'  => 36.96,
+                            'longitude' => -9.50,
+                        ],
+                        'high' => [ 
+                            'latitude'  => 42.15,
+                            'longitude' => -6.19,
+                        ],
                     ],
-                    'radius' => (float) $data['radius'],
                 ],
             ];
         }
