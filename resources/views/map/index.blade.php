@@ -9,7 +9,7 @@
 @section('content')
     <div id="content" class="flex flex-row pb-2 h-5px">
         <div class="rounded-full bg-proximo-700 backdrop-blur border border-gray-200 px-3 py-2.5 text-white shadow-md focus:ring-indigo-500">
-            <button id="btn-filtros" type="button">Filtros</button>
+            <button id="btn-filtros" type="button">Filtrar</button>
         </div>
 
         <div id="filtros-dropdown" class="hidden rounded-full pr-1">
@@ -18,7 +18,7 @@
                 <label class="ml-1 mr-2" for="filtro-zona">Zona</label>
 
                 <input type="checkbox" value="filtro2" class="rounded-full" id="filtro-2">
-                <label class="ml-1 mr-2" for="filtro-2">2</label>
+                <label class="ml-1 mr-2" for="filtro-2">Tipo</label>
 
                 <input type="checkbox" value="filtro3" class="rounded-full" id="filtro-3">
                 <label class="ml-1 mr-2" for="filtro-3">3</label>
