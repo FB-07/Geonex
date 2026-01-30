@@ -73,6 +73,12 @@
         <div id="map" style="height: 77.5vh; width: 75.5vw;"></div>
     </div>
 
+    <!--
+    Limpar localstorage
+    Loading ao pesquisar
+    Pesquisa por Distrito?, municipio?, freguesia?
+    -->
+
     <script>
         window.APP = {
             googleMapsKey: @json(config('services.google_maps.key')),

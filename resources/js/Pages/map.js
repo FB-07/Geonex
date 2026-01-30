@@ -162,7 +162,7 @@ function clearMarkers() {
 
 async function searchPlaces() {
   const input = el("search");
-  if (!input) return;
+  if (!input || !map) return;
 
   const query = input.value.trim();
   if (!query) return;
@@ -171,6 +171,7 @@ async function searchPlaces() {
   clearMarkers();
 
   let res;
+
   try {
     res = await fetch("/api/places/search", {
       method: "POST",
@@ -182,7 +183,7 @@ async function searchPlaces() {
         query,
         lat: 39.3999,
         lng: -8.2245,
-        radius: 500000,
+        radius: 50000,
       }),
     });
   } catch (e) {
@@ -191,13 +192,12 @@ async function searchPlaces() {
   }
 
   if (!res.ok) {
-    const txt = await res.text();
-    console.error("API error:", res.status, txt);
+    console.error("API error:", res.status, await res.text());
     return;
   }
 
   const data = await res.json();
-  console.log("source:", data.source);
+  console.log("source:", data.source, "count:", data.places.length);
 
   const places = data.places || [];
   if (!places.length) return;
@@ -205,7 +205,15 @@ async function searchPlaces() {
   const bounds = new google.maps.LatLngBounds();
 
   places.forEach((p) => {
-    const pos = { lat: Number(p.lat), lng: Number(p.lng) };
+    const lat = Number(p.lat);
+    const lng = Number(p.lng);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn("Coords inválidas:", p);
+      return;
+    }
+
+    const pos = { lat, lng };
 
     const marker = new google.maps.Marker({
       map,
