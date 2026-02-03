@@ -15,6 +15,12 @@ const placeholderOption = (text = "Selecione uma das opções") =>
 const RECENTS_KEY = "recent_searches";
 const MAX_RECENTS = 10;
 
+const recentMarkers = new Map();
+
+function setMarkersVisible(arr, visible) {
+  (arr || []).forEach((m) => m.setMap(visible ? map : null));
+}
+
 function getRecents() {
   try {
     return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
@@ -48,6 +54,12 @@ function removeRecent(term) {
     localStorage.removeItem(RECENTS_KEY);
   }
 
+  const entry = recentMarkers.get(term);
+  if (entry?.markers?.length) {
+    entry.markers.forEach((m) => m.setMap(null));
+  }
+  recentMarkers.delete(term);
+
   renderRecents();
 }
 
@@ -73,10 +85,23 @@ function renderRecents() {
     row.className =
       "flex items-center justify-between gap-2 p-1 hover:bg-gray-100 rounded";
 
+    const left = document.createElement("label");
+    left.className = "flex items-center gap-2 cursor-pointer min-w-0";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "cursor-pointer";
+    cb.dataset.term = term;
+
+    const entry = recentMarkers.get(term);
+    cb.checked = !!entry?.visible;
+
     const text = document.createElement("span");
-    text.className = "cursor-pointer text-sm truncate";
+    text.className = "text-sm truncate";
     text.textContent = term;
-    text.dataset.q = term;
+
+    left.appendChild(cb);
+    left.appendChild(text);
 
     let icon;
     if (iconTemplate) {
@@ -91,7 +116,7 @@ function renderRecents() {
 
     icon.dataset.term = term;
 
-    row.appendChild(text);
+    row.appendChild(left);
     row.appendChild(icon);
     container.appendChild(row);
   });
@@ -100,6 +125,23 @@ function renderRecents() {
 function onSearch(term) {
   saveRecent(term);
   renderRecents();
+}
+
+async function toggleRecentTerm(term, checked) {
+  if (!map) return;
+
+  const entry = recentMarkers.get(term);
+  if (!entry) return;
+
+  entry.visible = !!checked;
+
+  if (entry.visible) {
+    entry.markers.forEach((m) => m.setMap(map));
+  } else {
+    entry.markers.forEach((m) => m.setMap(null));
+  }
+
+  recentMarkers.set(term, entry);
 }
 
 function initRecent() {
@@ -128,20 +170,15 @@ function initRecent() {
       removeRecent(removeBtn.dataset.term);
       return;
     }
+  });
 
-    const item = e.target.closest("[data-q]");
-    if (!item) return;
+  list?.addEventListener("change", async (e) => {
+    e.stopPropagation();
 
-    const q = item.dataset.q;
+    const cb = e.target.closest('input[type="checkbox"][data-term]');
+    if (!cb) return;
 
-    const input = el("search");
-    if (input) input.value = q;
-
-    saveRecent(q);
-    renderRecents();
-
-    box?.classList.add("hidden");
-    searchPlaces();
+    await toggleRecentTerm(cb.dataset.term, cb.checked);
   });
 }
 
@@ -214,7 +251,6 @@ async function searchPlaces() {
   if (!query) return;
 
   onSearch(query);
-  clearMarkers();
 
   let res;
 
@@ -248,6 +284,12 @@ async function searchPlaces() {
   const places = data.places || [];
   if (!places.length) return;
 
+  const prev = recentMarkers.get(query);
+  if (prev?.markers?.length) {
+    prev.markers.forEach((m) => m.setMap(null));
+  }
+
+  const created = [];
   const bounds = new google.maps.LatLngBounds();
 
   places.forEach((p) => {
@@ -267,10 +309,14 @@ async function searchPlaces() {
       title: p.name,
     });
 
-    markers.push(marker);
+    created.push(marker);
     bounds.extend(pos);
   });
 
+  recentMarkers.set(query, { markers: created, visible: true });
+
+  renderRecents();
+  
   map.fitBounds(bounds);
 }
 
