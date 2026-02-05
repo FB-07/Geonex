@@ -6,23 +6,72 @@ use App\Http\Controllers\Web\Controller;
 use App\Models\Place;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class PlaceSearchController extends Controller
 {
     public function search(Request $request)
     {
+        Log::info('HIT /api/places/search', [
+            'ip' => $request->ip(),
+            'payload' => $request->all(),
+        ]);
+
+        try {
+            $placeConn = (new Place())->getConnectionName();
+            Log::info('DB CHECK', [
+                'place_connection' => $placeConn,
+                'place_database' => DB::connection($placeConn)->getDatabaseName(),
+                'has_places_table' => Schema::connection($placeConn)->hasTable('places'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('DB CHECK FAILED', [
+                'msg' => $e->getMessage(),
+            ]);
+        }
+
         $data = $request->validate([
-            'query'  => 'required|string|max:255',
-            'lat'    => 'nullable|numeric',
-            'lng'    => 'nullable|numeric',
-            'radius' => 'nullable|numeric|min:1|max:50000',
+            'query'     => 'required|string|max:255',
+            'lat'       => 'nullable|numeric',
+            'lng'       => 'nullable|numeric',
+            'radius'    => 'nullable|numeric|min:1|max:50000',
+            'category'  => 'nullable|string|max:80',
+            'distrito'  => 'nullable|string|max:120',
+            'municipio' => 'nullable|string|max:120',
+            'freguesia' => 'nullable|string|max:160',
         ]);
 
         $queryNorm = trim(mb_strtolower($data['query']));
 
-        $dbResults = Place::whereRaw('LOWER(name) LIKE ?', ['%'.$queryNorm.'%'])
-            ->limit(50)
-            ->get();
+        $category = $data['category'] ?? null;
+        $googleTypes = $this->mapCategoryToGoogleType($category);
+
+        if (is_array($googleTypes)) {
+            $googleTypes = array_values(array_unique(array_filter($googleTypes)));
+            $googleTypes = array_slice($googleTypes, 0, 20);
+        }
+
+        $zonaQuery = $this->buildZonaQuery($data);
+
+        $dbQuery = Place::query()
+            ->whereRaw('LOWER(name) LIKE ?', ['%' . $queryNorm . '%']);
+
+        if (!empty($googleTypes) && is_array($googleTypes)) {
+            $dbQuery->where(function ($q) use ($googleTypes) {
+                foreach ($googleTypes as $t) {
+                    $q->orWhereRaw('JSON_CONTAINS(types, ?)', [json_encode($t)])
+                      ->orWhere('types', 'LIKE', '%' . $t . '%');
+                }
+            });
+        }
+
+        $dbResults = $dbQuery->limit(50)->get();
+
+        Log::info('DB RESULTS', [
+            'count' => $dbResults->count(),
+        ]);
 
         if ($dbResults->count()) {
             return response()->json([
@@ -43,27 +92,39 @@ class PlaceSearchController extends Controller
         $fieldMask = 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types';
 
         $body = [
-            'textQuery' => $data['query'],
+            'textQuery'  => $data['query'],
+            'regionCode' => 'PT',
         ];
 
-        if (isset($data['lat'], $data['lng'], $data['radius'])) {
-            $body = [
-                'textQuery'   => $data['query'],
-                'regionCode'  => 'PT',
-                'locationRestriction' => [
-                    'rectangle' => [
-                        'low' => [ 
-                            'latitude'  => 36.96,
-                            'longitude' => -9.50,
-                        ],
-                        'high' => [ 
-                            'latitude'  => 42.15,
-                            'longitude' => -6.19,
-                        ],
-                    ],
-                ],
-            ];
+        if (!empty($googleTypes) && is_array($googleTypes)) {
+            $body['includedTypes'] = $googleTypes;
         }
+
+        if ($zonaQuery) {
+            $geo = $this->geocode($apiKey, $zonaQuery);
+
+            if ($geo) {
+                $body['locationRestriction'] = [
+                    'circle' => [
+                        'center' => [
+                            'latitude'  => $geo['lat'],
+                            'longitude' => $geo['lng'],
+                        ],
+                        'radius' => (float)($data['radius'] ?? 15000),
+                    ],
+                ];
+            } else {
+                $body['locationRestriction'] = $this->portugalRectangleRestriction();
+            }
+        } else {
+            $body['locationRestriction'] = $this->portugalRectangleRestriction();
+        }
+
+        Log::info('GOOGLE REQUEST BODY', [
+            'zonaQuery' => $zonaQuery,
+            'includedTypes' => $body['includedTypes'] ?? null,
+            'locationRestriction' => $body['locationRestriction'] ?? null,
+        ]);
 
         $resp = Http::timeout(20)->withHeaders([
             'Content-Type'     => 'application/json',
@@ -72,6 +133,11 @@ class PlaceSearchController extends Controller
         ])->post('https://places.googleapis.com/v1/places:searchText', $body);
 
         if (!$resp->successful()) {
+            Log::error('GOOGLE API ERROR', [
+                'status' => $resp->status(),
+                'body' => $resp->body(),
+            ]);
+
             return response()->json([
                 'error'   => 'Google API error',
                 'status'  => $resp->status(),
@@ -81,6 +147,11 @@ class PlaceSearchController extends Controller
 
         $places = $resp->json('places') ?? [];
 
+        Log::info('GOOGLE API OK', [
+            'count' => count($places),
+            'first_id' => $places[0]['id'] ?? null,
+        ]);
+
         if (!count($places)) {
             return response()->json([
                 'source' => 'google',
@@ -89,28 +160,181 @@ class PlaceSearchController extends Controller
         }
 
         $saved = [];
+        $skipped = 0;
 
         foreach ($places as $p) {
             $placeId = $p['id'] ?? null;
             $loc = $p['location'] ?? null;
 
-            if (!$placeId || !$loc) continue;
+            if (!$placeId || !$loc || !isset($loc['latitude'], $loc['longitude'])) {
+                $skipped++;
+                continue;
+            }
 
-            $saved[] = Place::updateOrCreate(
-                ['place_id' => $placeId],
-                [
-                    'name'              => $p['displayName']['text'] ?? '',
-                    'formatted_address' => $p['formattedAddress'] ?? null,
-                    'lat'               => $loc['latitude'],
-                    'lng'               => $loc['longitude'],
-                    'types'             => $p['types'] ?? null,
-                ]
-            );
+            $name = $p['displayName']['text'] ?? '';
+            $addr = $p['formattedAddress'] ?? null;
+            $types = $p['types'] ?? null;
+
+            Log::info('SAVING PLACE', [
+                'place_id' => $placeId,
+                'name' => $name,
+            ]);
+
+            try {
+                $saved[] = Place::updateOrCreate(
+                    ['place_id' => $placeId],
+                    [
+                        'name'              => $name,
+                        'formatted_address' => $addr,
+                        'lat'               => (float)$loc['latitude'],
+                        'lng'               => (float)$loc['longitude'],
+                        'types'             => $types,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('SAVE FAILED', [
+                    'place_id' => $placeId,
+                    'msg' => $e->getMessage(),
+                ]);
+            }
         }
+
+        Log::info('SAVE SUMMARY', [
+            'saved_count' => count($saved),
+            'skipped' => $skipped,
+        ]);
 
         return response()->json([
             'source' => 'google',
             'places' => $saved,
         ]);
+    }
+
+    private function portugalRectangleRestriction(): array
+    {
+        return [
+            'rectangle' => [
+                'low' => [
+                    'latitude'  => 36.96,
+                    'longitude' => -9.50,
+                ],
+                'high' => [
+                    'latitude'  => 42.15,
+                    'longitude' => -6.19,
+                ],
+            ],
+        ];
+    }
+
+    private function buildZonaQuery(array $data): ?string
+    {
+        $parts = [];
+
+        if (!empty($data['freguesia'])) $parts[] = $data['freguesia'];
+        if (!empty($data['municipio'])) $parts[] = $data['municipio'];
+        if (!empty($data['distrito']))  $parts[] = $data['distrito'];
+
+        if (!count($parts)) return null;
+
+        $parts[] = 'Portugal';
+        return implode(', ', $parts);
+    }
+
+    private function geocode(string $apiKey, string $address): ?array
+    {
+        $resp = Http::timeout(15)->get('https://maps.googleapis.com/maps/api/geocode/json', [
+            'address' => $address,
+            'key'     => $apiKey,
+        ]);
+
+        if (!$resp->successful()) {
+            Log::warning('GEOCODE FAILED', [
+                'address' => $address,
+                'status' => $resp->status(),
+                'body' => $resp->body(),
+            ]);
+            return null;
+        }
+
+        $loc = $resp->json('results.0.geometry.location');
+        if (!$loc || !isset($loc['lat'], $loc['lng'])) {
+            Log::warning('GEOCODE NO RESULT', [
+                'address' => $address,
+            ]);
+            return null;
+        }
+
+        return ['lat' => (float)$loc['lat'], 'lng' => (float)$loc['lng']];
+    }
+
+    private function mapCategoryToGoogleType(?string $category): ?array
+    {
+        if (!$category) return null;
+
+        $category = trim(mb_strtolower($category));
+
+        $map = [
+            'automotive' => [
+                'car_dealer','car_rental','car_repair','car_wash','electric_vehicle_charging_station',
+                'gas_station','parking','rest_stop'
+            ],
+            'business' => ['corporate_office','farm','ranch'],
+            'culture' => [
+                'art_gallery','art_studio','auditorium','cultural_landmark','historical_place',
+                'monument','museum','performing_arts_theater'
+            ],
+            'education' => ['library','preschool','primary_school','school','secondary_school','university'],
+            'entertainment' => [
+                'adventure_sports_center','amphitheatre','amusement_center','amusement_park','aquarium',
+                'banquet_hall','barbecue_area','botanical_garden','bowling_alley','casino','community_center',
+                'concert_hall','convention_center','cultural_center','dog_park','event_venue','garden',
+                'historical_landmark','marina','movie_rental','movie_theater','national_park','night_club',
+                'park','planetarium','plaza','state_park','tourist_attraction','visitor_center','water_park','zoo'
+            ],
+            'finance' => ['accounting','atm','bank'],
+            'fooddrink' => [
+                'bakery','bar','barbecue_restaurant','brazilian_restaurant','breakfast_restaurant','cafe',
+                'chinese_restaurant','coffee_shop','fast_food_restaurant','french_restaurant','hamburger_restaurant',
+                'ice_cream_shop','indian_restaurant','italian_restaurant','japanese_restaurant','meal_delivery',
+                'meal_takeaway','mexican_restaurant','pizza_restaurant','restaurant','seafood_restaurant',
+                'steak_house','sushi_restaurant','thai_restaurant','vegan_restaurant','vegetarian_restaurant','wine_bar'
+            ],
+            'geographic' => [
+                'administrative_area_level_1','administrative_area_level_2','country','locality','postal_code','school_district'
+            ],
+            'government' => [
+                'city_hall','courthouse','embassy','fire_station','government_office','local_government_office',
+                'police','post_office'
+            ],
+            'health' => [
+                'dental_clinic','dentist','doctor','drugstore','hospital','pharmacy','spa','wellness_center','yoga_studio'
+            ],
+            'housing' => ['apartment_building','apartment_complex','condominium_complex','housing_complex'],
+            'lodging' => [
+                'bed_and_breakfast','campground','camping_cabin','cottage','extended_stay_hotel','guest_house','hostel',
+                'hotel','inn','lodging','motel','resort_hotel','rv_park'
+            ],
+            'services' => [
+                'barber_shop','beauty_salon','catering_service','electrician','florist','funeral_home','hair_salon',
+                'insurance_agency','lawyer','locksmith','moving_company','plumber','real_estate_agency','storage',
+                'travel_agency','veterinary_care'
+            ],
+            'shopping' => [
+                'auto_parts_store','bicycle_store','book_store','cell_phone_store','clothing_store','convenience_store',
+                'department_store','electronics_store','furniture_store','gift_shop','grocery_store','hardware_store',
+                'home_improvement_store','jewelry_store','liquor_store','market','pet_store','shoe_store','shopping_mall',
+                'supermarket','warehouse_store'
+            ],
+            'sports' => [
+                'athletic_field','fitness_center','golf_course','gym','playground','ski_resort','sports_club',
+                'sports_complex','stadium','swimming_pool'
+            ],
+            'transportation' => [
+                'airport','bus_station','bus_stop','ferry_terminal','subway_station','taxi_stand','train_station',
+                'transit_station','truck_stop'
+            ],
+        ];
+
+        return $map[$category] ?? null;
     }
 }

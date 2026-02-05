@@ -1,6 +1,4 @@
 let map;
-let service;
-let markers = [];
 let userCircle = null;
 let municipiosReqId = 0;
 let freguesiasReqId = 0;
@@ -17,8 +15,20 @@ const MAX_RECENTS = 10;
 
 const recentMarkers = new Map();
 
-function setMarkersVisible(arr, visible) {
-  (arr || []).forEach((m) => m.setMap(visible ? map : null));
+function getActiveFilters() {
+  const cbTipo = el("filtro-tipo");
+  const category = el("category")?.value || "";
+
+  return {
+    category: cbTipo?.checked ? category : "",
+  };
+}
+
+function rerunSearchIfAny({ fitBounds = true } = {}) {
+  const input = el("search");
+  const query = input?.value?.trim();
+  if (!query) return;
+  searchPlacesByTerm(query, { fitBounds, save: true });
 }
 
 function getRecents() {
@@ -48,16 +58,11 @@ function removeRecent(term) {
   let recents = getRecents();
   recents = recents.filter((r) => (r || "").toLowerCase() !== term.toLowerCase());
 
-  if (recents.length) {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
-  } else {
-    localStorage.removeItem(RECENTS_KEY);
-  }
+  if (recents.length) localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+  else localStorage.removeItem(RECENTS_KEY);
 
   const entry = recentMarkers.get(term);
-  if (entry?.markers?.length) {
-    entry.markers.forEach((m) => m.setMap(null));
-  }
+  if (entry?.markers?.length) entry.markers.forEach((m) => m.setMap(null));
   recentMarkers.delete(term);
 
   renderRecents();
@@ -103,21 +108,29 @@ function renderRecents() {
     left.appendChild(cb);
     left.appendChild(text);
 
-    let icon;
+    let iconWrap;
     if (iconTemplate) {
-      icon = iconTemplate.cloneNode(true);
-      icon.classList.remove("hidden");
+      iconWrap = iconTemplate.cloneNode(true);
+      iconWrap.classList.remove("hidden");
+      iconWrap.removeAttribute("id");
+      iconWrap.dataset.remove = "1";
+      iconWrap.dataset.term = term;
+
+      const innerSvg = iconWrap.querySelector("svg");
+      if (innerSvg) {
+        innerSvg.dataset.remove = "1";
+        innerSvg.dataset.term = term;
+      }
     } else {
-      icon = document.createElement("span");
-      icon.textContent = "✕";
-      icon.className = "text-red-500 hover:text-red-700 cursor-pointer";
-      icon.id = "noRecent";
+      iconWrap = document.createElement("span");
+      iconWrap.textContent = "X";
+      iconWrap.className = "text-red-500 hover:text-red-700 cursor-pointer";
+      iconWrap.dataset.remove = "1";
+      iconWrap.dataset.term = term;
     }
 
-    icon.dataset.term = term;
-
     row.appendChild(left);
-    row.appendChild(icon);
+    row.appendChild(iconWrap);
     container.appendChild(row);
   });
 }
@@ -130,17 +143,26 @@ function onSearch(term) {
 async function toggleRecentTerm(term, checked) {
   if (!map) return;
 
+  term = (term || "").trim();
+  if (!term) return;
+
   const entry = recentMarkers.get(term);
+
+  if (checked && !entry) {
+    const { places } = await searchPlacesByTerm(term, { fitBounds: false, save: false });
+    if (!places.length) {
+      const cb = document.querySelector(
+        `input[type="checkbox"][data-term="${CSS.escape(term)}"]`
+      );
+      if (cb) cb.checked = false;
+    }
+    return;
+  }
+
   if (!entry) return;
 
   entry.visible = !!checked;
-
-  if (entry.visible) {
-    entry.markers.forEach((m) => m.setMap(map));
-  } else {
-    entry.markers.forEach((m) => m.setMap(null));
-  }
-
+  entry.markers.forEach((m) => m.setMap(entry.visible ? map : null));
   recentMarkers.set(term, entry);
 }
 
@@ -151,12 +173,7 @@ function initRecent() {
 
   btn?.addEventListener("click", (e) => {
     e.stopPropagation();
-
-    if (!getRecents().length) {
-      box?.classList.add("hidden");
-      return;
-    }
-
+    if (!getRecents().length) return box?.classList.add("hidden");
     box?.classList.toggle("hidden");
   });
 
@@ -164,20 +181,14 @@ function initRecent() {
 
   list?.addEventListener("click", (e) => {
     e.stopPropagation();
-
-    const removeBtn = e.target.closest("#noRecent");
-    if (removeBtn) {
-      removeRecent(removeBtn.dataset.term);
-      return;
-    }
+    const removeBtn = e.target.closest('[data-remove="1"]');
+    if (removeBtn) removeRecent(removeBtn.dataset.term);
   });
 
   list?.addEventListener("change", async (e) => {
     e.stopPropagation();
-
     const cb = e.target.closest('input[type="checkbox"][data-term]');
     if (!cb) return;
-
     await toggleRecentTerm(cb.dataset.term, cb.checked);
   });
 }
@@ -187,12 +198,7 @@ function loadGoogleMaps() {
 
   return new Promise((resolve, reject) => {
     const key = window.APP?.googleMapsKey;
-    if (!key) {
-      reject(
-        new Error("Google Maps API key não encontrada (window.APP.googleMapsKey).")
-      );
-      return;
-    }
+    if (!key) return reject(new Error("Google Maps API key não encontrada."));
 
     window.__initMapLoaded = () => resolve();
 
@@ -217,8 +223,6 @@ function initMap() {
     mapTypeId: "hybrid",
   });
 
-  service = new google.maps.places.PlacesService(map);
-
   bindSearch();
   bindMapButtons();
   initFiltros();
@@ -238,22 +242,38 @@ function bindSearch() {
   });
 }
 
-function clearMarkers() {
-  markers.forEach((m) => m.setMap(null));
-  markers = [];
+function colorFromString(str) {
+  str = (str || "").trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 80%, 45%)`;
 }
 
-async function searchPlaces() {
-  const input = el("search");
-  if (!input || !map) return;
+function makeMarkerIcon(term) {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: 8,
+    fillColor: colorFromString(term),
+    fillOpacity: 1,
+    strokeColor: "#ffffff",
+    strokeWeight: 2,
+  };
+}
 
-  const query = input.value.trim();
-  if (!query) return;
+async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {}) {
+  if (!map) return { places: [] };
 
-  onSearch(query);
+  query = (query || "").trim();
+  if (!query) return { places: [] };
+
+  if (save) onSearch(query);
+
+  const filters = getActiveFilters();
 
   let res;
-
   try {
     res = await fetch("/api/places/search", {
       method: "POST",
@@ -266,28 +286,25 @@ async function searchPlaces() {
         lat: 39.3999,
         lng: -8.2245,
         radius: 50000,
+        ...filters,
       }),
     });
   } catch (e) {
     console.error("Network error:", e);
-    return;
+    return { places: [] };
   }
 
   if (!res.ok) {
     console.error("API error:", res.status, await res.text());
-    return;
+    return { places: [] };
   }
 
   const data = await res.json();
-  console.log("source:", data.source, "count:", (data.places || []).length);
-
   const places = data.places || [];
-  if (!places.length) return;
+  if (!places.length) return { places: [] };
 
   const prev = recentMarkers.get(query);
-  if (prev?.markers?.length) {
-    prev.markers.forEach((m) => m.setMap(null));
-  }
+  if (prev?.markers?.length) prev.markers.forEach((m) => m.setMap(null));
 
   const created = [];
   const bounds = new google.maps.LatLngBounds();
@@ -295,11 +312,7 @@ async function searchPlaces() {
   places.forEach((p) => {
     const lat = Number(p.lat);
     const lng = Number(p.lng);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn("Coords inválidas:", p);
-      return;
-    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     const pos = { lat, lng };
 
@@ -307,6 +320,7 @@ async function searchPlaces() {
       map,
       position: pos,
       title: p.name,
+      icon: makeMarkerIcon(query),
     });
 
     created.push(marker);
@@ -314,10 +328,19 @@ async function searchPlaces() {
   });
 
   recentMarkers.set(query, { markers: created, visible: true });
-
   renderRecents();
-  
-  map.fitBounds(bounds);
+
+  if (fitBounds) map.fitBounds(bounds);
+
+  return { places };
+}
+
+async function searchPlaces() {
+  const input = el("search");
+  const query = input?.value?.trim();
+  if (!query) return;
+
+  await searchPlacesByTerm(query, { fitBounds: true, save: true });
 }
 
 function mostrarLocalizacaoNoMapa() {
@@ -328,11 +351,8 @@ function mostrarLocalizacaoNoMapa() {
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       const accuracy = pos.coords.accuracy;
-
-      const userPos = { lat, lng };
 
       map.setCenter(userPos);
       map.setZoom(16);
@@ -377,18 +397,14 @@ async function fetchDistritos() {
 
 async function fetchMunicipios(distrito) {
   const base = window.APP?.apiBase ?? "";
-  const res = await fetch(
-    `${base}/municipios?distrito=${encodeURIComponent(distrito)}`
-  );
+  const res = await fetch(`${base}/municipios?distrito=${encodeURIComponent(distrito)}`);
   if (!res.ok) return [];
   return res.json();
 }
 
 async function fetchFreguesias(municipio) {
   const base = window.APP?.apiBase ?? "";
-  const res = await fetch(
-    `${base}/freguesias?municipio=${encodeURIComponent(municipio)}`
-  );
+  const res = await fetch(`${base}/freguesias?municipio=${encodeURIComponent(municipio)}`);
   if (!res.ok) return [];
   return res.json();
 }
@@ -405,8 +421,8 @@ function initFiltros() {
   document.addEventListener("click", () => dropdown?.classList.add("hidden"));
 
   const cbZona = el("filtro-zona");
-  const cb2 = el("filtro-2");
-  const cb3 = el("filtro-3");
+  const cbTipo = el("filtro-tipo");
+  //const cb3 = el("filtro-3");
 
   const distritoDiv = el("distrito");
   const distritoSelect = el("distritos-select");
@@ -416,6 +432,9 @@ function initFiltros() {
 
   const freguesiaDiv = el("freguesias");
   const freguesiaSelect = el("freguesias-select");
+
+  const categoriaDiv = el("categoria");
+  const categoriaSelect = el("category");
 
   const noFiltro = el("nofiltro");
   const btnLimpar = el("btn-limpar");
@@ -444,10 +463,15 @@ function initFiltros() {
     hide(freguesiaDiv);
   };
 
-  const toggleNoFiltro = () => {
-    const anyChecked = !!(cbZona?.checked || cb2?.checked || cb3?.checked);
-    if (!noFiltro) return;
+  const resetCategoria = () => {
+    if (!categoriaSelect) return;
+    categoriaSelect.value = "";
+    hide(categoriaDiv);
+  };
 
+  const toggleNoFiltro = () => {
+    const anyChecked = !!(cbZona?.checked || cbTipo?.checked /*cb3?.checked*/);
+    if (!noFiltro) return;
     noFiltro.classList.toggle("hidden", !anyChecked);
     noFiltro.classList.toggle("block", anyChecked);
   };
@@ -483,22 +507,36 @@ function initFiltros() {
     toggleNoFiltro();
   });
 
-  cb2?.addEventListener("change", toggleNoFiltro);
-  cb3?.addEventListener("change", toggleNoFiltro);
+  cbTipo?.addEventListener("change", () => {
+    if (cbTipo.checked) {
+      show(categoriaDiv);
+      rerunSearchIfAny({ fitBounds: true });
+    } else {
+      resetCategoria();
+      rerunSearchIfAny({ fitBounds: true });
+    }
+    toggleNoFiltro();
+  });
+
+  //cb3?.addEventListener("change", toggleNoFiltro);
 
   btnLimpar?.addEventListener("click", (e) => {
     e.preventDefault();
 
     if (cbZona) cbZona.checked = false;
-    if (cb2) cb2.checked = false;
-    if (cb3) cb3.checked = false;
+    if (cbTipo) cbTipo.checked = false;
+    //if (cb3) cb3.checked = false;
 
     hide(distritoDiv);
     if (distritoSelect) distritoSelect.value = "";
-
     resetMunicipios();
     resetFreguesias();
+
+    if (categoriaSelect) categoriaSelect.value = "";
+    hide(categoriaDiv);
+
     toggleNoFiltro();
+    rerunSearchIfAny({ fitBounds: true });
   });
 
   distritoSelect?.addEventListener("change", async (e) => {
@@ -516,7 +554,6 @@ function initFiltros() {
 
     try {
       const municipios = await fetchMunicipios(distrito);
-
       if (myId !== municipiosReqId) return;
 
       municipioSelect.innerHTML = placeholderOption();
@@ -528,7 +565,7 @@ function initFiltros() {
       });
 
       municipioSelect.disabled = false;
-    } catch (err) {
+    } catch {
       if (myId !== municipiosReqId) return;
       municipioSelect.innerHTML = placeholderOption("Erro a carregar municípios");
     }
@@ -548,7 +585,6 @@ function initFiltros() {
 
     try {
       const freguesias = await fetchFreguesias(municipio);
-
       if (myId !== freguesiasReqId) return;
 
       freguesiaSelect.innerHTML = placeholderOption();
@@ -560,21 +596,15 @@ function initFiltros() {
       });
 
       freguesiaSelect.disabled = false;
-    } catch (err) {
+    } catch {
       if (myId !== freguesiasReqId) return;
       freguesiaSelect.innerHTML = placeholderOption("Erro a carregar freguesias");
     }
   });
 
-  /*freguesiaSelect?.addEventListener("change", (e) => {
-    const freguesia = e.target.value;
-    if (!freguesia) return;
-
-    const input = el("search");
-    if (input) input.value = freguesia;
-
-    searchPlaces();
-  });*/
+  categoriaSelect?.addEventListener("change", () => {
+    rerunSearchIfAny({ fitBounds: true });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
