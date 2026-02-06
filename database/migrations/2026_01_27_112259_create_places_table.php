@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->decimal('lat', 10, 7);
             $table->decimal('lng', 10, 7);
             $table->json('types')->nullable();
+            $table->char('color' ,7)->nullable();
             $table->timestamps();
         });
     }

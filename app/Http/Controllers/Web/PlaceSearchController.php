@@ -271,7 +271,7 @@ class PlaceSearchController extends Controller
     {
         if (!$category) return null;
 
-        $category = trim(mb_strtolower($category));
+        $category = trim(strtolower($category));
 
         $map = [
             'automotive' => [

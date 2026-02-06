@@ -15,6 +15,7 @@ class Place extends Model
         'lat',
         'lng',
         'types',
+        'color',
     ];
 
     protected $casts = [
@@ -22,4 +23,11 @@ class Place extends Model
         'lat'   => 'float',
         'lng'   => 'float',
     ];
+
+    public function setColorAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['color'] = strtoupper($value);
+        }
+    }
 }

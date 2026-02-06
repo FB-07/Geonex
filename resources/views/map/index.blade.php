@@ -14,7 +14,6 @@
             <div class="flex items-center justify-center block w-full min-h-10 mt-1 ml-1 rounded-md border-0 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-proximo-600 text-sm leading-6">
                 <input type="checkbox" value="zona" class="rounded-full" id="filtro-zona"> <label class="ml-1 mr-2" for="filtro-zona">Zona</label> 
                 <input type="checkbox" value="tipo" class="rounded-full" id="filtro-tipo"> <label class="ml-1 mr-2" for="filtro-tipo">Tipo</label> 
-                <input type="checkbox" value="filtro3" class="rounded-full" id="filtro-3"> <label class="ml-1 mr-2" for="filtro-3">3</label>
             </div>
         </div>
 
@@ -101,8 +100,9 @@
             apiBase: @json(url('/api')),
         };
         /* 
-            Filtros 
-            Markers -> heroicon-c-map-pin
+            Filtros (Zona / Tipo)
+            Markers -> 15 cores diferente
+            Area tecnica (Distritos / Municipios / Freguesias / Places) Editar / Apagar
         */
     </script> 
     
