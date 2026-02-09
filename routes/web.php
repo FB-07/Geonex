@@ -38,6 +38,8 @@ Route::middleware(['web', Language::class])->group(function () {
 });
 
 Route::get('/tecnical', [TecnicalController::class,'area'])->name('tecnical');
+Route::get('/tecnical-distritos', [TecnicalController::class,'distritosview'])->name('tecnical-distritos');
+Route::get('/tecnical-places', [TecnicalController::class,'placesview'])->name('tecnical-places');
 
 Route::fallback(function () {
     return view('404/index');
