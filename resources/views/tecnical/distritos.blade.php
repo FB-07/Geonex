@@ -2,7 +2,7 @@
  
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.queues') => route('tecnical'),
+        __('navbar.queues') => route('tecnical-distritos'),
     ]" />
 @endsection
  
@@ -22,6 +22,7 @@
 
     <div class="box mt-6">
         <div class="flex flex-col gap-4">
+            <x-items-per-page name="resultsPerPage" default="10" />
             <x-tecnical-table>
                 <x-slot:head>
                     <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
@@ -40,7 +41,8 @@
                     </tr>
                 @endforeach
             </x-tecnical-table>
-        </div>
+        {{ $distritos->links() }}
+        </div class="overflow-x-auto">
     </div>
 @endsection
  

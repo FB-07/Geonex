@@ -35,6 +35,11 @@ return [
     'settings' => 'Definições',
     'technicalarea'=> 'Area Tecnica',
 
+    'places' => 'Locais',
+    'distri' => 'Distritos',
+    'munici' => 'Municipios',
+    'parish' => 'Freguesias',
+
     'features' => 'Funcionalidades',
     'other' => 'Outros',
     'warnings' => 'Avisos',

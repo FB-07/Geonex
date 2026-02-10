@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Freguesia extends Model
 {
@@ -14,4 +15,10 @@ class Freguesia extends Model
     {
         return $this->belongsTo(Municipio::class);
     }
+
+    public function codigosPostais()
+    {
+        return $this->hasMany(CodigoPostal::class);
+    }
+
 }

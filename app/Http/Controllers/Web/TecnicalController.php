@@ -6,6 +6,8 @@ use App\Models\Distrito;
 use App\Models\Freguesia;
 use App\Models\Municipio;
 use App\Models\Place;
+use Illuminate\Http\Request;
+
 class TecnicalController extends Controller
 {
     public function area()
@@ -13,28 +15,54 @@ class TecnicalController extends Controller
         return view('tecnical.index');
     }
 
-    public function distritosview()
+    public function distritosview(Request $request)
     {
-        $distritos = Distrito::orderBy('nome')->get();
+        if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $distritos = Distrito::orderBy('id')->paginate($resultsPerPage);
+
         return view('tecnical.distritos', compact('distritos'));
     }
 
-    public function municipiosview()
+    public function municipiosview(Request $request)
     {
-        $municipios = Municipio::orderBy('nome')->get();
+       if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $municipios = Municipio::orderBy('id')->paginate($resultsPerPage);
+
         return view('tecnical.municipios', compact('municipios'));
     }
 
-    public function freguesiasview()
+    public function freguesiasview(Request $request)
     {
-        $freguesias = Freguesia::orderBy('nome')->get();
+       if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $freguesias = Freguesia::orderBy('id')->paginate($resultsPerPage);
 
         return view('tecnical.freguesias', compact('freguesias'));
     }
 
-    public function placesview()
+    public function placesview(Request $request)
     {
-        $places = Place::orderBy('id')->get();
+        if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $places = Place::orderBy('id')->paginate($resultsPerPage);
 
         return view('tecnical.places', compact('places'));
     }

@@ -34,6 +34,11 @@ return [
     'settings' => 'Settings',
     'warnings' => 'Warnings',
     'technicalarea'=> 'Technical Area',
+    
+    'places' => 'Places',
+    'distri' => 'Districts',
+    'munici' => 'Municipalities',
+    'parish' => 'Parishes',
 
     'features' => 'Features',
     'other' => 'Other',

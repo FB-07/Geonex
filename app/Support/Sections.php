@@ -25,7 +25,38 @@ class Sections
                 [
                     'name' => __('navbar.technicalarea'),
                     'icon' => 'wrench',
-                    'link' => 'tecnical',
+                    'link' => '',
+                    'sub-routes' => [
+                        [
+                            'name' => __('navbar.places'),
+                            'icon' => 'globe-europe-africa',
+                            'link' => 'tecnical-places',
+                            'sub-routes' => []
+                        ],
+                        [
+                            'name' => __('navbar.distri'),
+                            'icon' => 'map',
+                            'link' => 'tecnical-distritos',
+                            'sub-routes' => []
+                        ],
+                        [
+                            'name' => __('navbar.munici'),
+                            'icon' => 'map',
+                            'link' => 'tecnical-municipios',
+                            'sub-routes' => []
+                        ],
+                        [
+                            'name' => __('navbar.parish'),
+                            'icon' => 'map',
+                            'link' => 'tecnical-freguesias',
+                            'sub-routes' => []
+                        ]
+                    ],
+                ],
+                [
+                    'name' => __('navbar.technicalarea'),
+                    'icon' => 'wrench',
+                    'link' => '',
                     'sub-routes' => [],
                 ],
             ],

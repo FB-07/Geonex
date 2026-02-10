@@ -34,12 +34,12 @@ Route::middleware(['web', Language::class])->group(function () {
         )->only('index');
         Route::resource('/users', UsersController::class);
         Route::singleton('/profile', ProfileController::class);
+        Route::get('/tecnical-distritos', [TecnicalController::class,'distritosview'])->name('tecnical-distritos');
+        Route::get('/tecnical-municipios', [TecnicalController::class,'municipiosview'])->name('tecnical-municipios');
+        Route::get('/tecnical-freguesias', [TecnicalController::class,'freguesiasview'])->name('tecnical-freguesias');
+        Route::get('/tecnical-places', [TecnicalController::class,'placesview'])->name('tecnical-places');
     });
 });
-
-Route::get('/tecnical', [TecnicalController::class,'area'])->name('tecnical');
-Route::get('/tecnical-distritos', [TecnicalController::class,'distritosview'])->name('tecnical-distritos');
-Route::get('/tecnical-places', [TecnicalController::class,'placesview'])->name('tecnical-places');
 
 Route::fallback(function () {
     return view('404/index');
