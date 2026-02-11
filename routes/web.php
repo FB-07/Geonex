@@ -28,16 +28,15 @@ Route::middleware(['web', Language::class])->group(function () {
     Route::post('/login', [AuthController::class, 'store']);
     Route::get('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::group(['middleware' => 'auth'], function () {
-        Route::resource(
-            'map',
-            MapController::class
-        )->only('index');
+        Route::resource('map',MapController::class)->only('index');
         Route::resource('/users', UsersController::class);
         Route::singleton('/profile', ProfileController::class);
-        Route::get('/tecnical-distritos', [TecnicalController::class,'distritosview'])->name('tecnical-distritos');
-        Route::get('/tecnical-municipios', [TecnicalController::class,'municipiosview'])->name('tecnical-municipios');
-        Route::get('/tecnical-freguesias', [TecnicalController::class,'freguesiasview'])->name('tecnical-freguesias');
-        Route::get('/tecnical-places', [TecnicalController::class,'placesview'])->name('tecnical-places');
+        Route::get('/distritos', [TecnicalController::class,'distritosview'])->name('distritos');
+        Route::get('/municipios', [TecnicalController::class,'municipiosview'])->name('municipios');
+        Route::get('/freguesias', [TecnicalController::class,'freguesiasview'])->name('freguesias');
+        Route::get('/places', [TecnicalController::class,'placesview'])->name('places');
+        Route::get('/cp', [TecnicalController::class,'cpview'])->name('cp');
+        Route::get('/interest', [TecnicalController::class,'interestview'])->name('interest');
     });
 });
 

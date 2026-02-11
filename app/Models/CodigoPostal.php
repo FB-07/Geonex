@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CodigoPostal extends Model
 {
+    protected $connection = 'mysql2';
+
     protected $table = 'codigos_postais';
 
     protected $primaryKey = 'codigo';

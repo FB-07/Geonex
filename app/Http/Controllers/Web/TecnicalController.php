@@ -6,15 +6,12 @@ use App\Models\Distrito;
 use App\Models\Freguesia;
 use App\Models\Municipio;
 use App\Models\Place;
+use App\Models\CodigoPostal;
+use App\Models\SearchHistory;
 use Illuminate\Http\Request;
 
 class TecnicalController extends Controller
 {
-    public function area()
-    {
-        return view('tecnical.index');
-    }
-
     public function distritosview(Request $request)
     {
         if ($request->filled('resultsPerPage')) {
@@ -25,7 +22,7 @@ class TecnicalController extends Controller
  
         $distritos = Distrito::orderBy('id')->paginate($resultsPerPage);
 
-        return view('tecnical.distritos', compact('distritos'));
+        return view('distritos.index', compact('distritos'));
     }
 
     public function municipiosview(Request $request)
@@ -38,7 +35,7 @@ class TecnicalController extends Controller
  
         $municipios = Municipio::orderBy('id')->paginate($resultsPerPage);
 
-        return view('tecnical.municipios', compact('municipios'));
+        return view('municipios.index', compact('municipios'));
     }
 
     public function freguesiasview(Request $request)
@@ -51,7 +48,7 @@ class TecnicalController extends Controller
  
         $freguesias = Freguesia::orderBy('id')->paginate($resultsPerPage);
 
-        return view('tecnical.freguesias', compact('freguesias'));
+        return view('freguesias.index', compact('freguesias'));
     }
 
     public function placesview(Request $request)
@@ -64,6 +61,32 @@ class TecnicalController extends Controller
  
         $places = Place::orderBy('id')->paginate($resultsPerPage);
 
-        return view('tecnical.places', compact('places'));
+        return view('places.index', compact('places'));
+    }
+
+    public function cpview(Request $request)
+    {
+        if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $cps = CodigoPostal::orderBy('codigo')->paginate($resultsPerPage);
+
+        return view('cp.index', compact('cps'));
+    }
+
+    public function interestview(Request $request)
+    {
+        if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+        }
+ 
+        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+ 
+        $points = SearchHistory::orderBy('id')->paginate($resultsPerPage);
+
+        return view('interest.index', compact('points'));
     }
 }

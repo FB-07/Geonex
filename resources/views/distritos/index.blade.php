@@ -2,7 +2,7 @@
  
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.queues') => route('tecnical-distritos'),
+        __('navbar.distri') => route('distritos'),
     ]" />
 @endsection
  
@@ -35,8 +35,8 @@
                         <td class="px-3 py-4">{{ $distrito->nome }}</td>
 
                         <x-tecnical-tactions
-                            :editData="route('tecnical-distritos', $distrito)"
-                            :deleteData="route('tecnical-distritos', $distrito)"
+                            :editData="route('distritos', $distrito)"
+                            :deleteData="route('distritos', $distrito)"
                         />
                     </tr>
                 @endforeach

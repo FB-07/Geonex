@@ -7,6 +7,14 @@ class Sections
     public static function all(): array
     {
         return [
+            __('navbar.p_interest')=>[
+                [
+                    'name' => __('navbar.p_interest'),
+                    'icon' => 'map-pin',
+                    'link' => '',
+                    'sub-routes' => [],
+                ],
+            ],
             __('navbar.users') => [
                 [
                     'name' => __('navbar.users'),
@@ -14,12 +22,6 @@ class Sections
                     'link' => 'users',
                     'sub-routes' => [],
                 ],
-                // [
-                //     'name' => __('navbar.operador'),
-                //     'icon' => 'user',
-                //     'link' => '#',
-                //     'sub-routes' => [],
-                // ],
             ],
             __('navbar.features') => [
                 [
@@ -30,34 +32,34 @@ class Sections
                         [
                             'name' => __('navbar.places'),
                             'icon' => 'globe-europe-africa',
-                            'link' => 'tecnical-places',
+                            'link' => 'places',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.distri'),
                             'icon' => 'map',
-                            'link' => 'tecnical-distritos',
+                            'link' => 'distritos',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.munici'),
                             'icon' => 'map',
-                            'link' => 'tecnical-municipios',
+                            'link' => 'municipios',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.parish'),
                             'icon' => 'map',
-                            'link' => 'tecnical-freguesias',
+                            'link' => 'freguesias',
+                            'sub-routes' => []
+                        ],
+                        [
+                            'name' => __('navbar.cp'),
+                            'icon' => 'envelope',
+                            'link' => 'cp',
                             'sub-routes' => []
                         ]
                     ],
-                ],
-                [
-                    'name' => __('navbar.technicalarea'),
-                    'icon' => 'wrench',
-                    'link' => '',
-                    'sub-routes' => [],
                 ],
             ],
         ];

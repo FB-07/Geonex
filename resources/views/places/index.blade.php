@@ -2,7 +2,7 @@
  
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.places') => route('tecnical'),
+        __('navbar.places') => route('places'),
     ]" />
 @endsection
  
@@ -22,6 +22,7 @@
 
     <div class="box mt-6">
         <div class="flex flex-col gap-4">
+            <x-items-per-page name="resultsPerPage" default="10" />
             <x-tecnical-table>
                 <x-slot:head>
                     <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
@@ -46,13 +47,14 @@
                         <td class="px-3 py-4">{{ $place->lng }}</td>
 
                         <x-tecnical-tactions 
-                            :editData="route('tecnical-places', $place)" 
-                            :deleteData="route('tecnical-places', $place)" 
+                            :editData="route('places', $place)" 
+                            :deleteData="route('places', $place)" 
                         />
                     </tr>
                 @endforeach
             </x-tecnical-table>
-        </div>
+            {{ $places->links() }}
+        </div class="overflow-x-auto">
     </div>
 @endsection
  

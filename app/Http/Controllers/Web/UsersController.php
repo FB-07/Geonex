@@ -48,12 +48,6 @@ class UsersController extends Controller
             'password_confirmation' => ['required', 'max:64'],
             'email' => ['required', 'email', 'unique:App\Models\User,gfuser_email', 'max:200'],
             'sex' => ['required'],
-            'type' => ['required'],
-            'salut' => ['max:32'],
-            'speciality' => ['max:128'],
-            'place' => ['max:128'],
-            'clientid' => ['max:255'],
-            'doctortype' => ['required', 'max:1']
         ]);
 
         $hasher = new MD5Hasher();
@@ -65,13 +59,6 @@ class UsersController extends Controller
             'gfuser_password' => $hasher->make($attributes['password']),
             'gfuser_sex' => $attributes['sex'],
             'gfuser_email' => $attributes['email'],
-            'gfuser_type' => $attributes['type'],
-            'gfuser_salut' => $attributes['salut'],
-            'gfuser_speciality' => $attributes['speciality'],
-            'gfuser_place' => $attributes['place'],
-            'gfuser_clientid' => $attributes['clientid'],
-            'gfuser_doctortype' => $attributes['doctortype'],
-
         ]);
 
         return redirect('/users')->with('success', 'Profile created successfully');
@@ -92,12 +79,6 @@ class UsersController extends Controller
             'fullname' => ['required', 'max:255'],
             'email' => ['required', 'email', 'max:200'],
             'sex' => ['required'],
-            'type' => ['required'],
-            'salut' => ['max:32'],
-            'speciality' => ['max:128'],
-            'place' => ['max:128'],
-            'clientid' => ['max:255'],
-            'doctortype' => ['required', 'max:1']
         ]);
 
         $user = User::findOrFail($id);
@@ -109,12 +90,6 @@ class UsersController extends Controller
             'gfuser_fullname' => $attributes['fullname'],
             'gfuser_email' => $attributes['email'],
             'gfuser_sex' => $attributes['sex'],
-            'gfuser_type' => $attributes['type'],
-            'gfuser_salut' => $attributes['salut'],
-            'gfuser_speciality' => $attributes['speciality'],
-            'gfuser_place' => $attributes['place'],
-            'gfuser_clientid' => $attributes['clientid'],
-            'gfuser_doctortype' => $attributes['doctortype']
         ]);
 
         //ddd($attributes);

@@ -27,12 +27,6 @@ class ProfileController extends Controller
             'fullname' => ['required', 'max:255'],
             'email' => ['required', 'email', 'max:200'],
             'sex' => ['required'],
-            'type' => ['required'],
-            'salut' => ['max:32'],
-            'speciality' => ['max:128'],
-            'place' => ['max:128'],
-            'clientid' => ['max:255'],
-            'doctortype' => ['required', 'max:1']
         ]);
 
         User::where('gfuser_id', Auth::user()->gfuser_id)
@@ -42,12 +36,6 @@ class ProfileController extends Controller
                 'gfuser_fullname' => $attributes['fullname'],
                 'gfuser_email' => $attributes['email'],
                 'gfuser_sex' => $attributes['sex'],
-                'gfuser_type' => $attributes['type'],
-                'gfuser_salut' => $attributes['salut'],
-                'gfuser_speciality' => $attributes['speciality'],
-                'gfuser_place' => $attributes['place'],
-                'gfuser_clientid' => $attributes['clientid'],
-                'gfuser_doctortype' => $attributes['doctortype']
             ]);
 
         return redirect('/profile')->with('success', 'Profile updated successfully');
