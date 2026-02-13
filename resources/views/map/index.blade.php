@@ -77,7 +77,7 @@
     </div>
 
     <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[200px] left-[355px]">
-        <a id="recent"><x-heroicon-o-exclamation-circle class="w-6 h-6 cursor-pointer" /></a> 
+        <a id="recent"><x-heroicon-o-map-pin class="w-6 h-6 cursor-pointer" /></a> 
     </div>
     
     <div id="recentInfo"

@@ -11,7 +11,7 @@ class Sections
                 [
                     'name' => __('navbar.p_interest'),
                     'icon' => 'map-pin',
-                    'link' => '',
+                    'link' => 'interest',
                     'sub-routes' => [],
                 ],
             ],
@@ -32,31 +32,31 @@ class Sections
                         [
                             'name' => __('navbar.places'),
                             'icon' => 'globe-europe-africa',
-                            'link' => 'places',
+                            'link' => 'tec-places',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.distri'),
                             'icon' => 'map',
-                            'link' => 'distritos',
+                            'link' => 'tec-distritos',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.munici'),
                             'icon' => 'map',
-                            'link' => 'municipios',
+                            'link' => 'tec-municipios',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.parish'),
                             'icon' => 'map',
-                            'link' => 'freguesias',
+                            'link' => 'tec-freguesias',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.cp'),
                             'icon' => 'envelope',
-                            'link' => 'cp',
+                            'link' => 'tec-cp',
                             'sub-routes' => []
                         ]
                     ],

@@ -6,6 +6,8 @@ use App\Http\Controllers\Web\MapController;
 use App\Http\Controllers\Web\UsersController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\TecnicalController;
+use App\Http\Controllers\Web\SaveInterestController;
+use App\Http\Controllers\Web\PointsInterestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,12 +33,15 @@ Route::middleware(['web', Language::class])->group(function () {
         Route::resource('map',MapController::class)->only('index');
         Route::resource('/users', UsersController::class);
         Route::singleton('/profile', ProfileController::class);
-        Route::get('/distritos', [TecnicalController::class,'distritosview'])->name('distritos');
-        Route::get('/municipios', [TecnicalController::class,'municipiosview'])->name('municipios');
-        Route::get('/freguesias', [TecnicalController::class,'freguesiasview'])->name('freguesias');
-        Route::get('/places', [TecnicalController::class,'placesview'])->name('places');
-        Route::get('/cp', [TecnicalController::class,'cpview'])->name('cp');
-        Route::get('/interest', [TecnicalController::class,'interestview'])->name('interest');
+        
+        Route::get('/tec-distritos', [TecnicalController::class,'distritosview'])->name('tec-distritos');
+        Route::get('/tec-municipios', [TecnicalController::class,'municipiosview'])->name('tec-municipios');
+        Route::get('/tec-freguesias', [TecnicalController::class,'freguesiasview'])->name('tec-freguesias');
+        Route::get('/tec-places', [TecnicalController::class,'placesview'])->name('tec-places');
+        Route::get('/tec-cp', [TecnicalController::class,'cpview'])->name('tec-cp');
+        Route::get('/interest', [PointsInterestController::class,'interestview'])->name('interest');
+        Route::get('/interest-add', [PointsInterestController::class,'interestaddview'])->name('interest-add');
+        Route::post('/interest-add', [SaveInterestController::class,'store'])->name('interest-controller');
     });
 });
 

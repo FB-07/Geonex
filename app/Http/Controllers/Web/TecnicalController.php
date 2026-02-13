@@ -7,7 +7,6 @@ use App\Models\Freguesia;
 use App\Models\Municipio;
 use App\Models\Place;
 use App\Models\CodigoPostal;
-use App\Models\SearchHistory;
 use Illuminate\Http\Request;
 
 class TecnicalController extends Controller
@@ -75,18 +74,5 @@ class TecnicalController extends Controller
         $cps = CodigoPostal::orderBy('codigo')->paginate($resultsPerPage);
 
         return view('cp.index', compact('cps'));
-    }
-
-    public function interestview(Request $request)
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
- 
-        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
- 
-        $points = SearchHistory::orderBy('id')->paginate($resultsPerPage);
-
-        return view('interest.index', compact('points'));
     }
 }

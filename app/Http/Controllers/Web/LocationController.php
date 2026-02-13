@@ -13,7 +13,8 @@ class LocationController extends Controller
     public function distritos()
     {
         return response()->json(
-            Distrito::orderBy('nome')
+            Distrito::where('nome', 'NOT LIKE', '%ilha%')
+                ->orderBy('nome')
                 ->pluck('nome')
                 ->values()
         );
