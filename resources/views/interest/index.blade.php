@@ -26,23 +26,41 @@
 
             <tbody class="divide-y divide-gray-200 text-gray-500">
 
-                @forelse($groups as $nome => $places)
+                @forelse($groupsPage as $g)
+                    @php
+                        $key = $g->nome.'|'.$g->distrito_id.'|'.$g->municipio_id.'|'.$g->freguesia_id;
+                        $places = $placesByGroup[$key] ?? collect();
+                    @endphp
+
                     <tr>
                         <td class="px-0 py-0">
                             <details class="group">
-                                <summary
-                                    class="list-none cursor-pointer px-3 py-3.5 text-sm flex items-center justify-between">
-                                    <span class="font-medium text-gray-900">
-                                        {{ $nome }}
-                                    </span>
+                                <summary class="list-none cursor-pointer px-3 py-3.5 text-sm flex items-center justify-between">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900">
+                                            {{ $g->nome }}
+                                        </span>
 
-                                    <span class="text-gray-500 group-open:hidden">
+                                        <span class="text-xs text-gray-500 mt-0.5">
+                                            {{ $g->distrito_nome }} / {{ $g->municipio_nome }} / {{ $g->freguesia_nome }}
+                                        </span>
+                                    </div>
+
+                                    <span class="text-gray-500">
                                         <x-tecnical-tactions
-                                            :editData="route('tec-freguesias', $freguesia)"
-                                            :deleteData="route('tec-freguesias', $freguesia)"
+                                            :editData="route('interest', $key)"
+                                            :deleteData="route('interest', $key)"
                                         />
                                     </span>
-                                    
+
+                                    {{--
+                                    <span class="text-gray-500 group-open:hidden">
+                                        <x-tecnical-tactions
+                                            :editData="route('interest', $key)"
+                                            :deleteData="route('interest', $key)"
+                                        />
+                                    </span>
+                                    --}}
                                 </summary>
 
                                 <div class="box mt-2 px-3 pb-4">
@@ -68,7 +86,7 @@
                                         </thead>
 
                                         <tbody class="divide-y divide-gray-200 text-gray-500">
-                                            @foreach ($places as $p)
+                                            @forelse ($places as $p)
                                                 <tr>
                                                     <td class="px-3 py-3.5 text-sm text-gray-900 font-medium">
                                                         {{ $p->name }}
@@ -95,10 +113,7 @@
 
                                                             if (is_string($types)) {
                                                                 $decoded = json_decode($types, true);
-                                                                $types =
-                                                                    json_last_error() === JSON_ERROR_NONE
-                                                                        ? $decoded
-                                                                        : [$types];
+                                                                $types = json_last_error() === JSON_ERROR_NONE ? $decoded : [$types];
                                                             }
 
                                                             $types = is_array($types) ? $types : [];
@@ -118,13 +133,20 @@
                                                         @endif
                                                     </td>
                                                 </tr>
-                                            @endforeach
+                                            @empty
+                                                <tr>
+                                                    <td colspan="5" class="px-3 py-3.5 text-sm text-gray-500">
+                                                        Sem locais associados.
+                                                    </td>
+                                                </tr>
+                                            @endforelse
                                         </tbody>
                                     </table>
                                 </div>
                             </details>
                         </td>
                     </tr>
+
                 @empty
                     <tr>
                         <td class="px-3 py-3.5 text-sm text-gray-500">
@@ -137,9 +159,15 @@
         </table>
 
         <div class="mt-4">
-            {{ $namesPage->links() }}
+            {{ $groupsPage->links() }}
         </div>
-
     </div>
+    @push('scripts')
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open'));
+        });
+        </script>
+    @endpush
 
 @endsection

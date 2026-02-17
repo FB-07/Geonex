@@ -33,11 +33,13 @@
                     <tr class="divide-y divide-gray-200">
                         <td class="px-3 py-4">{{ $cp->codigo }}</td>
                         <td class="px-3 py-4">{{ $cp->freguesia_id }}</td>
-
-                        <x-tecnical-tactions
-                            :editData="route('tec-cp', $cp)"
-                            :deleteData="route('tec-cp', $cp)"
-                        />
+                            
+                        <td class="px-3 py-4">
+                            <x-tecnical-tactions
+                                :editData="route('tec-cp', $cp)"
+                                :deleteData="route('tec-cp', $cp)"
+                            />
+                        </td>
                     </tr>
                 @endforeach
             </x-tecnical-table>

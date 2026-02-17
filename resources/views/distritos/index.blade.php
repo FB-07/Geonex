@@ -33,11 +33,13 @@
                     <tr class="divide-y divide-gray-200">
                         <td class="px-3 py-4">{{ $distrito->id }}</td>
                         <td class="px-3 py-4">{{ $distrito->nome }}</td>
-
-                        <x-tecnical-tactions
-                            :editData="route('tec-distritos', $distrito)"
-                            :deleteData="route('tec-distritos', $distrito)"
-                        />
+                        
+                        <td class="px-3 py-4">
+                            <x-tecnical-tactions
+                                :editData="route('tec-distritos', $distrito)"
+                                :deleteData="route('tec-distritos', $distrito)"
+                            />
+                        </td>
                     </tr>
                 @endforeach
             </x-tecnical-table>

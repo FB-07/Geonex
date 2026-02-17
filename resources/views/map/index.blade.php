@@ -66,32 +66,39 @@
         </div>
     </div>
 
-    <div id="iconsMap"
-        class="w-10 h-auto absolute z-[1001] top-[150px] right-[43px] flex flex-col items-center justify-center bg-white shadow-md">
-        <a id="btn-locPais"><x-heroicon-m-arrows-pointing-out class="w-6 h-10 cursor-pointer" /></a> 
-        <a id="btn-localizacao"><x-heroicon-m-arrows-pointing-in class="w-6 h-10 cursor-pointer" /></a> 
-    </div>
-    
-    <div class="h-10 w-8 absolute z-[1001] bg-white text-gray-700 top-[150px] left-[355px] cursor-pointer"> 
-        <input id="search" type="search" class="relative border shadow-md bg-white border-gray-400 hover:bg-gray-100" placeholder="Pesquisar(ex: Continente)"> 
-    </div>
+    <div id="mapWrapper" class="relative w-full h-full">
+        <div id="iconsMap" class="w-10 h-auto absolute z-[1001] top-12 right-2.5 flex flex-col items-center justify-center bg-white shadow-md">
+            <a id="btn-locPais"><x-heroicon-o-map class="text-gray-600 hover:text-black w-6 h-10 cursor-pointer" /></a> 
+            <a id="btn-localizacao"><x-heroicon-o-map-pin class="text-gray-600 hover:text-black w-6 h-10 cursor-pointer" /></a> 
+        </div>
 
-    <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[200px] left-[355px]">
-        <a id="recent"><x-heroicon-o-map-pin class="w-6 h-6 cursor-pointer" /></a> 
-    </div>
-    
-    <div id="recentInfo"
-        class="hidden absolute p-2 rounded-xm z-[1001] top-[235px] left-[355px] bg-white max-h-[108px] w-[205px] overflow-y-scroll">
-        <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Recentes</p>
-        <div id="recentList"></div>
-    </div> 
+        <div class="h-10 w-6 absolute z-[1001] text-gray-700 top-[20px] left-4">
+            <input id="search" type="search"
+                class="border shadow-md bg-white border-gray-400"
+                placeholder="Pesquisar (ex: Continente)">
+        </div>
 
-    <span id="noRecent" class="hidden"> 
-        <x-heroicon-o-x-circle class="w-6 h-6 text-red-500 hover:text-red-700 cursor-pointer" /> 
-    </span>
+        <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-4">
+            <a id=""><x-heroicon-o-bookmark class="w-6 h-6 cursor-pointer" /></a>
+        </div>
 
-    <div>
-        <div id="map" style="height: 77.5vh; width: 75.5vw;"></div>
+        <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-14">
+            <a id="recent"><x-heroicon-o-clock class="w-6 h-6 cursor-pointer" /></a> 
+        </div>
+
+        <div id="recentInfo"
+            class="hidden absolute p-2 rounded-md z-[1001] top-[110px] left-4 bg-white max-h-[108px] w-[205px] overflow-y-scroll shadow-md">
+            <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Recentes</p>
+            <div id="recentList"></div>
+        </div>
+
+        <span id="noRecent" class="hidden"> 
+            <x-heroicon-o-x-circle class="w-6 h-6 text-red-500 hover:text-red-700 cursor-pointer" /> 
+        </span>
+
+        <div>
+            <div id="map" style="height: 77.5vh; width: full;"></div>
+        </div>
     </div>
 
     <script>
@@ -102,7 +109,7 @@
         /* 
             Filtros (Zona / Tipo)
             Markers -> 15 cores diferente
-            Area tecnica (Distritos / Municipios / Freguesias / Places) Editar / Apagar
+            Editar / Apagar
         */
     </script> 
     

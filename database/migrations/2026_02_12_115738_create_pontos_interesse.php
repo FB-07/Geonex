@@ -8,16 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('pontos_interesse', function (Blueprint $table) {
+        Schema::connection('mysql2')->create('pontos_interesse', function (Blueprint $table) {
             $table->id();
-            $table->string('nome');
-            $table->foreignId('gfuser_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('distritos_id')->constrained('distritos')->cascadeOnDelete();
-            $table->foreignId('municipios_id')->constrained('municipio0s')->cascadeOnDelete();
+            $table->string('nome', 255);
+            $table->unsignedInteger('gfuser_id');
+            $table->foreignId('distrito_id')->constrained('distritos')->cascadeOnDelete();
+            $table->foreignId('municipio_id')->constrained('municipios')->cascadeOnDelete();
             $table->foreignId('freguesia_id')->constrained('freguesias')->cascadeOnDelete();
-
-            $table->foreignId('place_id')->constrained()->cascadeOnDelete();
-
+            $table->string('place_id', 150);
+            $table->timestamps();
+            $table->foreign('gfuser_id')->references('gfuser_id')->on('users')->onDelete('cascade');
+            $table->foreign('place_id')->references('place_id')->on('places')->onDelete('cascade');
         });
     }
 

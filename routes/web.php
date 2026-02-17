@@ -34,14 +34,15 @@ Route::middleware(['web', Language::class])->group(function () {
         Route::resource('/users', UsersController::class);
         Route::singleton('/profile', ProfileController::class);
         
-        Route::get('/tec-distritos', [TecnicalController::class,'distritosview'])->name('tec-distritos');
-        Route::get('/tec-municipios', [TecnicalController::class,'municipiosview'])->name('tec-municipios');
-        Route::get('/tec-freguesias', [TecnicalController::class,'freguesiasview'])->name('tec-freguesias');
-        Route::get('/tec-places', [TecnicalController::class,'placesview'])->name('tec-places');
-        Route::get('/tec-cp', [TecnicalController::class,'cpview'])->name('tec-cp');
+        Route::get('/tec/distritos', [TecnicalController::class,'distritosview'])->name('tec-distritos');
+        Route::get('/tec/municipios', [TecnicalController::class,'municipiosview'])->name('tec-municipios');
+        Route::get('/tec/freguesias', [TecnicalController::class,'freguesiasview'])->name('tec-freguesias');
+        Route::get('/tec/places', [TecnicalController::class,'placesview'])->name('tec-places');
+        Route::get('/tec/cp', [TecnicalController::class,'cpview'])->name('tec-cp');
         Route::get('/interest', [PointsInterestController::class,'interestview'])->name('interest');
-        Route::get('/interest-add', [PointsInterestController::class,'interestaddview'])->name('interest-add');
-        Route::post('/interest-add', [SaveInterestController::class,'store'])->name('interest-controller');
+        Route::get('/interest/add', [PointsInterestController::class,'interestaddview'])->name('interest-add');
+        Route::post('/interest/add', [SaveInterestController::class,'store'])->name('interest-controller');
+        Route::post('/interest/check', [SaveInterestController::class, 'check'])->name('interest-check');
     });
 });
 

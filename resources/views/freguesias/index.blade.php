@@ -36,10 +36,12 @@
                         <td class="px-3 py-4">{{ $freguesia->municipio_id }}</td>
                         <td class="px-3 py-4">{{ $freguesia->nome }}</td>
 
-                        <x-tecnical-tactions
-                            :editData="route('tec-freguesias', $freguesia)"
-                            :deleteData="route('tec-freguesias', $freguesia)"
-                        />
+                        <td class="px-3 py-4">
+                            <x-tecnical-tactions
+                                :editData="route('tec-freguesias', $freguesia)"
+                                :deleteData="route('tec-freguesias', $freguesia)"
+                            />
+                        </tr>
                     </tr>
                 @endforeach
             </x-tecnical-table>

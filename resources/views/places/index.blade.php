@@ -46,10 +46,12 @@
                         <td class="px-3 py-4">{{ $place->lat }}</td>
                         <td class="px-3 py-4">{{ $place->lng }}</td>
 
-                        <x-tecnical-tactions 
-                            :editData="route('tec-places', $place)" 
-                            :deleteData="route('tec-places', $place)" 
-                        />
+                        <td class="px-3 py-4">
+                            <x-tecnical-tactions 
+                                :editData="route('tec-places', $place)" 
+                                :deleteData="route('tec-places', $place)" 
+                            />
+                        </td>
                     </tr>
                 @endforeach
             </x-tecnical-table>

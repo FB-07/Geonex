@@ -13,6 +13,38 @@ use Illuminate\Support\Facades\Log;
 
 class SaveInterestController extends Controller
 {
+    public function check(Request $request)
+    {
+        $data = $request->validate([
+            'pesquisa'  => 'required|string|max:255',
+            'distrito'  => 'nullable|string|max:120',
+            'municipio' => 'nullable|string|max:120',
+            'freguesia' => 'nullable|string|max:160',
+        ]);
+
+        $user = auth()->user();
+        if (!$user || !isset($user->gfuser_id)) {
+            return response()->json(['exists' => false]);
+        }
+        $userId = (int) $user->gfuser_id;
+
+        $conn = DB::connection('mysql2');
+
+        $distritoId  = !empty($data['distrito'])  ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id') : null;
+        $municipioId = !empty($data['municipio']) ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id') : null;
+        $freguesiaId = !empty($data['freguesia']) ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id') : null;
+
+        $q = (new Pontos_Interesse())->setConnection('mysql2')->newQuery()
+            ->where('gfuser_id', $userId)
+            ->where('nome', $data['pesquisa']);
+
+        if ($distritoId)  $q->where('distrito_id', $distritoId);
+        if ($municipioId) $q->where('municipio_id', $municipioId);
+        if ($freguesiaId) $q->where('freguesia_id', $freguesiaId);
+
+        return response()->json(['exists' => $q->exists()]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -42,14 +74,37 @@ class SaveInterestController extends Controller
         }
         $userId = (int) $user->gfuser_id;
 
+        $alreadyExists = (new Pontos_Interesse())
+            ->setConnection('mysql2')
+            ->newQuery()
+            ->where('gfuser_id', $userId)
+            ->where('nome', $data['pesquisa'])
+            ->where('distrito_id', $distritoId)
+            ->where('municipio_id', $municipioId)
+            ->where('freguesia_id', $freguesiaId)
+            ->exists();
+
+        if ($alreadyExists) {
+            return back()->withInput()->withErrors([
+                'pesquisa' => 'Já existe esse ponto de interesse.'
+            ]);
+        }
+
         $apiKey = config('services.google_maps.key');
         if (!$apiKey) {
             return back()->withInput()->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
         }
 
-        $body = [
+        $headers = [
+            'Content-Type'     => 'application/json',
+            'X-Goog-Api-Key'   => $apiKey,
+            'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types,nextPageToken',
+        ];
+
+        $baseBody = [
             'textQuery'  => $data['pesquisa'],
             'regionCode' => 'PT',
+            'pageSize'   => 20,
             'locationBias' => [
                 'circle' => [
                     'center' => ['latitude' => 39.3999, 'longitude' => -8.2245],
@@ -58,25 +113,42 @@ class SaveInterestController extends Controller
             ],
         ];
 
-        $resp = Http::timeout(20)->withHeaders([
-            'Content-Type'     => 'application/json',
-            'X-Goog-Api-Key'   => $apiKey,
-            'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types',
-        ])->post('https://places.googleapis.com/v1/places:searchText', $body);
+        $allPlaces = [];
+        $pageToken = null;
 
-        if (!$resp->successful()) {
-            $msg = $resp->json('error.message') ?? $resp->body();
-            return back()->withInput()->withErrors([
-                'pesquisa' => "Google Places API ({$resp->status()}): " . mb_strimwidth((string)$msg, 0, 300, '...'),
-            ]);
+        for ($i = 0; $i < 3; $i++) {
+            $body = $baseBody;
+            if ($pageToken) {
+                $body['pageToken'] = $pageToken;
+            }
+
+            $resp = Http::timeout(20)->withHeaders($headers)
+                ->post('https://places.googleapis.com/v1/places:searchText', $body);
+
+            if (!$resp->successful()) {
+                $msg = $resp->json('error.message') ?? $resp->body();
+                return back()->withInput()->withErrors([
+                    'pesquisa' => "Google Places API ({$resp->status()}): " . mb_strimwidth((string)$msg, 0, 300, '...'),
+                ]);
+            }
+
+            $places = $resp->json('places') ?? [];
+            $allPlaces = array_merge($allPlaces, $places);
+
+            $pageToken = $resp->json('nextPageToken');
+            if (!$pageToken) {
+                break;
+            }
         }
 
-        $results = $resp->json('places') ?? [];
+        if (empty($allPlaces)) {
+            return back()->withInput()->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
+        }
 
         DB::connection('mysql2')->beginTransaction();
 
         try {
-            foreach ($results as $p) {
+            foreach ($allPlaces as $p) {
                 if (!isset($p['id'], $p['location']['latitude'], $p['location']['longitude'])) {
                     continue;
                 }
@@ -92,15 +164,18 @@ class SaveInterestController extends Controller
                     ]
                 );
 
-                (new Pontos_Interesse())->setConnection('mysql2')->newQuery()->create([
-                    'nome'         => $data['pesquisa'],
-                    'gfuser_id'    => $userId,
-                    'distrito_id'  => $distritoId,
-                    'municipio_id' => $municipioId,
-                    'freguesia_id' => $freguesiaId,
-                    'place_id'     => $place->place_id,
-                ]);
-
+                (new Pontos_Interesse())->setConnection('mysql2')->newQuery()->firstOrCreate(
+                    [
+                        'gfuser_id' => $userId,
+                        'place_id'  => $place->place_id,
+                    ],
+                    [
+                        'nome'         => $data['pesquisa'],
+                        'distrito_id'  => $distritoId,
+                        'municipio_id' => $municipioId,
+                        'freguesia_id' => $freguesiaId,
+                    ]
+                );
 
                 (new SearchHistory())->setConnection('mysql2')->newQuery()->create([
                     'gfuser_id' => $userId,

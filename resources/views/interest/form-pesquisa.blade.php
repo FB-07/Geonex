@@ -8,7 +8,15 @@
 @endsection
 
 @section('content')
-    <x-errors />
+    @if ($errors->any())
+        <div class="mb-4 rounded bg-red-100 p-4 text-red-700">
+            <ul class="list-disc pl-5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     <div x-data class="h-full">
 
@@ -39,6 +47,9 @@
     </div>
 
     @push('scripts')
-        @vite('resources/js/pages/points_interest.js')
+    <script>
+        window.checkInterestUrl = "{{ route('interest-check') }}";
+    </script>
+    @vite('resources/js/pages/points_interest.js')
     @endpush
 @endsection

@@ -74,4 +74,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         setOptions(freguesiaEl, freguesias, 'Selecione uma freguesia');
         setDisabled(freguesiaEl, false);
     }
+    
+    const input = document.querySelector('input[name="pesquisa"]');
+    const form = document.querySelector('#zone-form');
+    const button = form?.querySelector('button[type="submit"]');
+
+    if (!input || !form || !button) return;
+
+    const message = document.createElement("div");
+    message.className = "text-red-600 text-sm mt-1";
+    input.parentElement.appendChild(message);
+
+    let timeout = null;
+
+    const checkDuplicate = async () => {
+        const value = input.value.trim();
+        if (!value) return;
+
+        const response = await fetch(window.checkInterestUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ pesquisa: value })
+        });
+
+        const data = await response.json();
+
+        if (data.exists) {
+            message.textContent = "Já existe esse ponto de interesse.";
+            button.disabled = true;
+            button.classList.add("opacity-50", "cursor-not-allowed");
+        } else {
+            message.textContent = "";
+            button.disabled = false;
+            button.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+    };
+
+    input.addEventListener("input", () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(checkDuplicate, 400);
+    });
+
+    form.addEventListener("submit", async (e) => {
+        await checkDuplicate();
+        if (button.disabled) {
+            e.preventDefault();
+        }
+    });
 });
