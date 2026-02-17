@@ -79,11 +79,11 @@
         </div>
 
         <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-4">
-            <a id=""><x-heroicon-o-bookmark class="w-6 h-6 cursor-pointer" /></a>
+            <a id="pontos_interesse"><x-heroicon-o-bookmark class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a>
         </div>
 
         <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-14">
-            <a id="recent"><x-heroicon-o-clock class="w-6 h-6 cursor-pointer" /></a> 
+            <a id="recent"><x-heroicon-o-clock class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a> 
         </div>
 
         <div id="recentInfo"
