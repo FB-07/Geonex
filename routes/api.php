@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Web\LocationController;
 use App\Http\Controllers\Web\PlaceSearchController;
+use App\Http\Controllers\Web\PointsInterestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,7 +20,7 @@ use App\Http\Controllers\Web\PlaceSearchController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
-});
+});;
 
 Route::post('/places/search', [PlaceSearchController::class, 'search']);
 

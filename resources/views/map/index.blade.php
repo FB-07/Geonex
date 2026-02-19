@@ -82,6 +82,11 @@
             <a id="pontos_interesse"><x-heroicon-o-bookmark class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a>
         </div>
 
+        <div id="pontos_interesseInfo" class="hidden absolute p-2 rounded-md z-[1001] top-[110px] left-4 bg-white max-h-[170px] w-[205px] overflow-y-scroll shadow-md">
+            <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Pontos de interesse</p>
+            <div id="pontos_interesseList"></div>
+        </div>
+
         <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-14">
             <a id="recent"><x-heroicon-o-clock class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a> 
         </div>
@@ -110,6 +115,8 @@
             Filtros (Zona / Tipo)
             Markers -> 15 cores diferente
             Editar / Apagar
+            User
+            Password
         */
     </script> 
     

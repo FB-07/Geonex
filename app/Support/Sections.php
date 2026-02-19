@@ -32,33 +32,33 @@ class Sections
                         [
                             'name' => __('navbar.places'),
                             'icon' => 'globe-europe-africa',
-                            'link' => 'tec/places',
+                            'link' => 'places',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.distri'),
                             'icon' => 'map',
-                            'link' => 'tec/distritos',
+                            'link' => 'distritos',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.munici'),
                             'icon' => 'map',
-                            'link' => 'tec/municipios',
+                            'link' => 'municipios',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.parish'),
                             'icon' => 'map',
-                            'link' => 'tec/freguesias',
+                            'link' => 'freguesias',
                             'sub-routes' => []
                         ],
                         [
                             'name' => __('navbar.cp'),
                             'icon' => 'envelope',
-                            'link' => 'tec/cp',
+                            'link' => 'codigos-postais',
                             'sub-routes' => []
-                        ]
+                        ],
                     ],
                 ],
             ],

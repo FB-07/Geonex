@@ -2,7 +2,7 @@
  
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.cp') => route('tec-cp'),
+        __('navbar.cp') => route('codigos-postais.index'),
     ]" />
 @endsection
  
@@ -36,8 +36,8 @@
                             
                         <td class="px-3 py-4">
                             <x-tecnical-tactions
-                                :editData="route('tec-cp', $cp)"
-                                :deleteData="route('tec-cp', $cp)"
+                                :editData="route('codigos-postais.edit', $cp)"
+                                :deleteData="route('codigos-postais.destroy', $cp)"
                             />
                         </td>
                     </tr>

@@ -2,7 +2,7 @@
  
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.places') => route('tec-places'),
+        __('navbar.places') => route('places.index'),
     ]" />
 @endsection
  
@@ -48,8 +48,8 @@
 
                         <td class="px-3 py-4">
                             <x-tecnical-tactions 
-                                :editData="route('tec-places', $place)" 
-                                :deleteData="route('tec-places', $place)" 
+                                :editData="route('places.edit', $place)" 
+                                :deleteData="route('places.destroy', $place)" 
                             />
                         </td>
                     </tr>
@@ -60,3 +60,4 @@
     </div>
 @endsection
  
+{{--4 tabelas distrios(distrito_id PK)<-municipios(municipio_id PK)<-freguesias(freguesia_id PK)<-codigos_postais(codigo PK) e quero pegar o codigo postal da morada do place e ver atraves das FK se os places estao no distrito/municipio/freguesia determidado pelo utilizador se tiver guarda na bd e mostra--}}

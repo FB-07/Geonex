@@ -14,14 +14,12 @@ const RECENTS_KEY = "recent_searches";
 const MAX_RECENTS = 10;
 
 const recentMarkers = new Map();
+const poiMarkers = new Map();
 
 function getActiveFilters() {
   const cbTipo = el("filtro-tipo");
   const category = el("category")?.value || "";
-
-  return {
-    category: cbTipo?.checked ? category : "",
-  };
+  return { category: cbTipo?.checked ? category : "" };
 }
 
 function rerunSearchIfAny({ fitBounds = true } = {}) {
@@ -47,7 +45,6 @@ function saveRecent(term) {
   recents = recents.filter((r) => (r || "").toLowerCase() !== term.toLowerCase());
   recents.unshift(term);
   recents = recents.slice(0, MAX_RECENTS);
-
   localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
 }
 
@@ -173,7 +170,11 @@ function initRecent() {
 
   btn?.addEventListener("click", (e) => {
     e.stopPropagation();
+
+    const poiBox = el("pontos_interesseInfo");
     if (!getRecents().length) return box?.classList.add("hidden");
+
+    poiBox?.classList.add("hidden");
     box?.classList.toggle("hidden");
   });
 
@@ -227,7 +228,9 @@ function initMap() {
   bindMapButtons();
   initFiltros();
   initRecent();
+  initPOI();
   renderRecents();
+  bootstrapPOI();
 }
 
 function bindSearch() {
@@ -422,7 +425,6 @@ function initFiltros() {
 
   const cbZona = el("filtro-zona");
   const cbTipo = el("filtro-tipo");
-  //const cb3 = el("filtro-3");
 
   const distritoDiv = el("distrito");
   const distritoSelect = el("distritos-select");
@@ -470,7 +472,7 @@ function initFiltros() {
   };
 
   const toggleNoFiltro = () => {
-    const anyChecked = !!(cbZona?.checked || cbTipo?.checked /*cb3?.checked*/);
+    const anyChecked = !!(cbZona?.checked || cbTipo?.checked);
     if (!noFiltro) return;
     noFiltro.classList.toggle("hidden", !anyChecked);
     noFiltro.classList.toggle("block", anyChecked);
@@ -518,14 +520,11 @@ function initFiltros() {
     toggleNoFiltro();
   });
 
-  //cb3?.addEventListener("change", toggleNoFiltro);
-
   btnLimpar?.addEventListener("click", (e) => {
     e.preventDefault();
 
     if (cbZona) cbZona.checked = false;
     if (cbTipo) cbTipo.checked = false;
-    //if (cb3) cb3.checked = false;
 
     hide(distritoDiv);
     if (distritoSelect) distritoSelect.value = "";
@@ -604,6 +603,181 @@ function initFiltros() {
 
   categoriaSelect?.addEventListener("change", () => {
     rerunSearchIfAny({ fitBounds: true });
+  });
+}
+
+async function fetchPOINames() {
+  try {
+    const res = await fetch("/pontos-interesse/names", {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.names || []).filter(Boolean);
+  } catch (e) {
+    console.error("fetchPOINames:", e);
+    return [];
+  }
+}
+
+async function fetchPOIPlacesByName(name) {
+  const token = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  try {
+    const res = await fetch("/pontos-interesse/places", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(token ? { "X-CSRF-TOKEN": token } : {}),
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!res.ok) {
+      console.error("Erro places:", res.status, await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    return data.places || [];
+  } catch (e) {
+    console.error("fetchPOIPlacesByName:", e);
+    return [];
+  }
+}
+
+function renderPOI(names) {
+  const container = el("pontos_interesseList");
+  const wrapper = el("pontos_interesseInfo");
+
+  if (!container || !wrapper) return;
+
+  if (!names.length) {
+    wrapper.classList.add("hidden");
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = "";
+
+  names.forEach((name) => {
+    const row = document.createElement("div");
+    row.className = "flex items-center gap-2 p-1 hover:bg-gray-100 rounded";
+
+    const label = document.createElement("label");
+    label.className = "flex items-center gap-2 cursor-pointer min-w-0 w-full";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "cursor-pointer";
+    cb.dataset.poi = name;
+
+    const entry = poiMarkers.get(name);
+    cb.checked = !!entry?.visible;
+
+    const text = document.createElement("span");
+    text.className = "text-sm truncate";
+    text.textContent = name;
+
+    label.appendChild(cb);
+    label.appendChild(text);
+    row.appendChild(label);
+    container.appendChild(row);
+  });
+}
+
+async function bootstrapPOI() {
+  const names = await fetchPOINames();
+  renderPOI(names);
+}
+
+async function togglePOI(name, checked) {
+  if (!map) return;
+
+  name = (name || "").trim();
+  if (!name) return;
+
+  const entry = poiMarkers.get(name);
+
+  if (checked && !entry) {
+    const places = await fetchPOIPlacesByName(name);
+
+    if (!places.length) {
+      const cb = document.querySelector(
+        `input[type="checkbox"][data-poi="${CSS.escape(name)}"]`
+      );
+      if (cb) cb.checked = false;
+      return;
+    }
+
+    const markers = [];
+    const bounds = new google.maps.LatLngBounds();
+
+    places.forEach((p) => {
+      const lat = Number(p.lat);
+      const lng = Number(p.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const pos = { lat, lng };
+
+      const marker = new google.maps.Marker({
+        map,
+        position: pos,
+        title: p.name || name,
+        icon: makeMarkerIcon(`poi:${name}`),
+      });
+
+      markers.push(marker);
+      bounds.extend(pos);
+    });
+
+    poiMarkers.set(name, { markers, visible: true });
+
+    if (!bounds.isEmpty()) map.fitBounds(bounds);
+    return;
+  }
+
+  if (!entry) return;
+
+  entry.visible = !!checked;
+  entry.markers.forEach((m) => m.setMap(entry.visible ? map : null));
+  poiMarkers.set(name, entry);
+}
+
+function initPOI() {
+  const btn = el("pontos_interesse");
+  const box = el("pontos_interesseInfo");
+  const list = el("pontos_interesseList");
+  const recentBox = el("recentInfo");
+
+  if (!btn || !box || !list) return;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!list.children.length) {
+      box.classList.add("hidden");
+      return;
+    }
+
+    recentBox?.classList.add("hidden");
+    box.classList.toggle("hidden");
+  });
+
+  box.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", () => box.classList.add("hidden"));
+
+  list.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    const cb = e.target.closest('input[type="checkbox"][data-poi]');
+    if (!cb) return;
+    await togglePOI(cb.dataset.poi, cb.checked);
   });
 }
 
