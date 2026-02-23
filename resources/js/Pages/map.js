@@ -276,6 +276,14 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
 
   const filters = getActiveFilters();
 
+  // ✅ NOVO: enviar filtros de zona só se filtro-zona estiver ativo
+  const cbZona = el("filtro-zona");
+  const sendZona = !!cbZona?.checked;
+
+  const distrito = sendZona ? (el("distritos-select")?.value || "") : "";
+  const municipio = sendZona ? (el("municipios-select")?.value || "") : "";
+  const freguesia = sendZona ? (el("freguesias-select")?.value || "") : "";
+
   let res;
   try {
     res = await fetch("/api/places/search", {
@@ -290,6 +298,9 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
         lng: -8.2245,
         radius: 50000,
         ...filters,
+        distrito,
+        municipio,
+        freguesia,
       }),
     });
   } catch (e) {
@@ -500,11 +511,13 @@ function initFiltros() {
   cbZona?.addEventListener("change", () => {
     if (cbZona.checked) {
       show(distritoDiv);
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
     } else {
       hide(distritoDiv);
       if (distritoSelect) distritoSelect.value = "";
       resetMunicipios();
       resetFreguesias();
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
     }
     toggleNoFiltro();
   });
@@ -543,7 +556,10 @@ function initFiltros() {
 
     resetMunicipios();
     resetFreguesias();
-    if (!distrito) return;
+    if (!distrito) {
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      return;
+    }
 
     show(municipioDiv);
     municipioSelect.disabled = true;
@@ -564,6 +580,7 @@ function initFiltros() {
       });
 
       municipioSelect.disabled = false;
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
     } catch {
       if (myId !== municipiosReqId) return;
       municipioSelect.innerHTML = placeholderOption("Erro a carregar municípios");
@@ -574,7 +591,10 @@ function initFiltros() {
     const municipio = e.target.value;
 
     resetFreguesias();
-    if (!municipio) return;
+    if (!municipio) {
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      return;
+    }
 
     show(freguesiaDiv);
     freguesiaSelect.disabled = true;
@@ -595,10 +615,15 @@ function initFiltros() {
       });
 
       freguesiaSelect.disabled = false;
+      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
     } catch {
       if (myId !== freguesiasReqId) return;
       freguesiaSelect.innerHTML = placeholderOption("Erro a carregar freguesias");
     }
+  });
+
+  freguesiaSelect?.addEventListener("change", () => {
+    rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
   });
 
   categoriaSelect?.addEventListener("change", () => {
@@ -606,6 +631,7 @@ function initFiltros() {
   });
 }
 
+// ===== POI (mantido igual)
 async function fetchPOINames() {
   try {
     const res = await fetch("/pontos-interesse/names", {

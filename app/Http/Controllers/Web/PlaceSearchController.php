@@ -12,25 +12,57 @@ use Illuminate\Support\Facades\DB;
 
 class PlaceSearchController extends Controller
 {
+    private function extractCpDigits(?string $formattedAddress): ?string
+    {
+        if (!$formattedAddress) return null;
+
+        if (!preg_match('/\b(\d{4})\s*[-\s]\s*(\d{3})\b/u', $formattedAddress, $m)) {
+            return null;
+        }
+
+        return $m[1] . $m[2];
+    }
+
+    private function cpToHierarchy($conn, string $cpDigits): ?object
+    {
+        return $conn->table('codigos_postais as cp')
+            ->join('freguesias as f', 'f.id', '=', 'cp.freguesia_id')
+            ->join('municipios as m', 'm.id', '=', 'f.municipio_id')
+            ->join('distritos as d', 'd.id', '=', 'm.distrito_id')
+            ->where('cp.codigo', $cpDigits)
+            ->select([
+                'f.id as freguesia_id',
+                'm.id as municipio_id',
+                'd.id as distrito_id',
+            ])
+            ->first();
+    }
+
+    private function resolveZonaIds($conn, array $data): array
+    {
+        $distritoId = null;
+        $municipioId = null;
+        $freguesiaId = null;
+
+        if (!empty($data['distrito'])) {
+            $distritoId = $conn->table('distritos')->where('nome', $data['distrito'])->value('id');
+        }
+        if (!empty($data['municipio'])) {
+            $municipioId = $conn->table('municipios')->where('nome', $data['municipio'])->value('id');
+        }
+        if (!empty($data['freguesia'])) {
+            $freguesiaId = $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id');
+        }
+
+        return [$distritoId, $municipioId, $freguesiaId];
+    }
+
     public function search(Request $request)
     {
         Log::info('HIT /api/places/search', [
             'ip' => $request->ip(),
             'payload' => $request->all(),
         ]);
-
-        try {
-            $placeConn = (new Place())->getConnectionName();
-            Log::info('DB CHECK', [
-                'place_connection' => $placeConn,
-                'place_database' => DB::connection($placeConn)->getDatabaseName(),
-                'has_places_table' => Schema::connection($placeConn)->hasTable('places'),
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('DB CHECK FAILED', [
-                'msg' => $e->getMessage(),
-            ]);
-        }
 
         $data = $request->validate([
             'query'     => 'required|string|max:255',
@@ -45,6 +77,20 @@ class PlaceSearchController extends Controller
 
         $queryNorm = trim(mb_strtolower($data['query']));
 
+        // ligação usada pelo model Place
+        $connName = (new Place())->getConnectionName() ?: config('database.default');
+        $conn = DB::connection($connName);
+
+        try {
+            Log::info('DB CHECK', [
+                'place_connection' => $connName,
+                'place_database' => $conn->getDatabaseName(),
+                'has_places_table' => Schema::connection($connName)->hasTable('places'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('DB CHECK FAILED', ['msg' => $e->getMessage()]);
+        }
+
         $category = $data['category'] ?? null;
         $googleTypes = $this->mapCategoryToGoogleType($category);
 
@@ -53,9 +99,12 @@ class PlaceSearchController extends Controller
             $googleTypes = array_slice($googleTypes, 0, 20);
         }
 
-        $zonaQuery = $this->buildZonaQuery($data);
+        // zona por nomes -> ids
+        [$distritoId, $municipioId, $freguesiaId] = $this->resolveZonaIds($conn, $data);
+        $isFilteringByZona = (bool)($distritoId || $municipioId || $freguesiaId);
 
-        $dbQuery = Place::query()
+        // 1) tenta BD primeiro (com filtro por zona)
+        $dbQuery = Place::on($connName)
             ->whereRaw('LOWER(name) LIKE ?', ['%' . $queryNorm . '%']);
 
         if (!empty($googleTypes) && is_array($googleTypes)) {
@@ -67,11 +116,11 @@ class PlaceSearchController extends Controller
             });
         }
 
-        $dbResults = $dbQuery->limit(50)->get();
+        if ($distritoId)  $dbQuery->where('distrito_id', $distritoId);
+        if ($municipioId) $dbQuery->where('municipio_id', $municipioId);
+        if ($freguesiaId) $dbQuery->where('freguesia_id', $freguesiaId);
 
-        Log::info('DB RESULTS', [
-            'count' => $dbResults->count(),
-        ]);
+        $dbResults = $dbQuery->limit(50)->get();
 
         if ($dbResults->count()) {
             return response()->json([
@@ -80,16 +129,15 @@ class PlaceSearchController extends Controller
             ]);
         }
 
+        // 2) Google
         $apiKey = config('services.google_maps.key');
-
         if (!$apiKey) {
-            return response()->json([
-                'error' => 'Google Maps key not configured',
-                'hint'  => 'Define GOOGLE_MAPS_KEY no .env e services.google_maps.key no config/services.php',
-            ], 500);
+            return response()->json(['error' => 'Google Maps key not configured'], 500);
         }
 
         $fieldMask = 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types';
+
+        $zonaQuery = $this->buildZonaQuery($data);
 
         $body = [
             'textQuery'  => $data['query'],
@@ -106,10 +154,7 @@ class PlaceSearchController extends Controller
             if ($geo) {
                 $body['locationRestriction'] = [
                     'circle' => [
-                        'center' => [
-                            'latitude'  => $geo['lat'],
-                            'longitude' => $geo['lng'],
-                        ],
+                        'center' => ['latitude' => $geo['lat'], 'longitude' => $geo['lng']],
                         'radius' => (float)($data['radius'] ?? 15000),
                     ],
                 ];
@@ -120,12 +165,6 @@ class PlaceSearchController extends Controller
             $body['locationRestriction'] = $this->portugalRectangleRestriction();
         }
 
-        Log::info('GOOGLE REQUEST BODY', [
-            'zonaQuery' => $zonaQuery,
-            'includedTypes' => $body['includedTypes'] ?? null,
-            'locationRestriction' => $body['locationRestriction'] ?? null,
-        ]);
-
         $resp = Http::timeout(20)->withHeaders([
             'Content-Type'     => 'application/json',
             'X-Goog-Api-Key'   => $apiKey,
@@ -133,11 +172,6 @@ class PlaceSearchController extends Controller
         ])->post('https://places.googleapis.com/v1/places:searchText', $body);
 
         if (!$resp->successful()) {
-            Log::error('GOOGLE API ERROR', [
-                'status' => $resp->status(),
-                'body' => $resp->body(),
-            ]);
-
             return response()->json([
                 'error'   => 'Google API error',
                 'status'  => $resp->status(),
@@ -146,17 +180,8 @@ class PlaceSearchController extends Controller
         }
 
         $places = $resp->json('places') ?? [];
-
-        Log::info('GOOGLE API OK', [
-            'count' => count($places),
-            'first_id' => $places[0]['id'] ?? null,
-        ]);
-
         if (!count($places)) {
-            return response()->json([
-                'source' => 'google',
-                'places' => [],
-            ]);
+            return response()->json(['source' => 'google', 'places' => []]);
         }
 
         $saved = [];
@@ -171,17 +196,29 @@ class PlaceSearchController extends Controller
                 continue;
             }
 
-            $name = $p['displayName']['text'] ?? '';
-            $addr = $p['formattedAddress'] ?? null;
+            $name  = $p['displayName']['text'] ?? '';
+            $addr  = $p['formattedAddress'] ?? null;
             $types = $p['types'] ?? null;
 
-            Log::info('SAVING PLACE', [
-                'place_id' => $placeId,
-                'name' => $name,
-            ]);
+            // CP -> hierarquia
+            $cpDigits = $this->extractCpDigits($addr);
+
+            if ($isFilteringByZona && !$cpDigits) { $skipped++; continue; }
+
+            $hier = null;
+            if ($cpDigits) $hier = $this->cpToHierarchy($conn, $cpDigits);
+
+            if ($isFilteringByZona && !$hier) { $skipped++; continue; }
+
+            // filtro por zona (se pedido)
+            if ($isFilteringByZona && $hier) {
+                if ($freguesiaId && (int)$hier->freguesia_id !== (int)$freguesiaId) { $skipped++; continue; }
+                if ($municipioId && (int)$hier->municipio_id !== (int)$municipioId) { $skipped++; continue; }
+                if ($distritoId && (int)$hier->distrito_id !== (int)$distritoId) { $skipped++; continue; }
+            }
 
             try {
-                $saved[] = Place::updateOrCreate(
+                $saved[] = Place::on($connName)->updateOrCreate(
                     ['place_id' => $placeId],
                     [
                         'name'              => $name,
@@ -189,24 +226,22 @@ class PlaceSearchController extends Controller
                         'lat'               => (float)$loc['latitude'],
                         'lng'               => (float)$loc['longitude'],
                         'types'             => $types,
+
+                        // grava automaticamente
+                        'distrito_id'       => $hier->distrito_id ?? null,
+                        'municipio_id'      => $hier->municipio_id ?? null,
+                        'freguesia_id'      => $hier->freguesia_id ?? null,
                     ]
                 );
             } catch (\Throwable $e) {
-                Log::error('SAVE FAILED', [
-                    'place_id' => $placeId,
-                    'msg' => $e->getMessage(),
-                ]);
+                Log::error('SAVE FAILED', ['place_id' => $placeId, 'msg' => $e->getMessage()]);
             }
         }
-
-        Log::info('SAVE SUMMARY', [
-            'saved_count' => count($saved),
-            'skipped' => $skipped,
-        ]);
 
         return response()->json([
             'source' => 'google',
             'places' => $saved,
+            'meta'   => ['skipped' => $skipped],
         ]);
     }
 
@@ -214,14 +249,8 @@ class PlaceSearchController extends Controller
     {
         return [
             'rectangle' => [
-                'low' => [
-                    'latitude'  => 36.96,
-                    'longitude' => -9.50,
-                ],
-                'high' => [
-                    'latitude'  => 42.15,
-                    'longitude' => -6.19,
-                ],
+                'low' => ['latitude' => 36.96, 'longitude' => -9.50],
+                'high' => ['latitude' => 42.15, 'longitude' => -6.19],
             ],
         ];
     }
@@ -247,22 +276,10 @@ class PlaceSearchController extends Controller
             'key'     => $apiKey,
         ]);
 
-        if (!$resp->successful()) {
-            Log::warning('GEOCODE FAILED', [
-                'address' => $address,
-                'status' => $resp->status(),
-                'body' => $resp->body(),
-            ]);
-            return null;
-        }
+        if (!$resp->successful()) return null;
 
         $loc = $resp->json('results.0.geometry.location');
-        if (!$loc || !isset($loc['lat'], $loc['lng'])) {
-            Log::warning('GEOCODE NO RESULT', [
-                'address' => $address,
-            ]);
-            return null;
-        }
+        if (!$loc || !isset($loc['lat'], $loc['lng'])) return null;
 
         return ['lat' => (float)$loc['lat'], 'lng' => (float)$loc['lng']];
     }

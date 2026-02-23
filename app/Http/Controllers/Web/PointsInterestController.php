@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Web\Controller;
 use App\Models\Pontos_Interesse;
 use App\Models\Place;
+use App\Models\SearchHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\SearchHistory;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class PointsInterestController extends Controller
 {
+    /**
+     * Extrai os dígitos do código postal de um endereço formatado
+     */
     private function extractCpDigits(?string $formattedAddress): ?string
     {
         if (!$formattedAddress) return null;
@@ -23,6 +26,10 @@ class PointsInterestController extends Controller
 
         return $m[1] . $m[2];
     }
+
+    /**
+     * Obtém a hierarquia (freguesia, municipio, distrito) a partir de um código postal
+     */
     private function cpToHierarchy($conn, string $cpDigits): ?object
     {
         return $conn->table('codigos_postais as cp')
@@ -38,11 +45,14 @@ class PointsInterestController extends Controller
             ->first();
     }
 
+    /**
+     * Verifica se um ponto de interesse já existe
+     */
     public function check(Request $request)
     {
         $data = $request->validate([
-            'pesquisa'  => 'required|string|max:255',
-            'distrito'  => 'nullable|string|max:120',
+            'pesquisa' => 'required|string|max:255',
+            'distrito' => 'nullable|string|max:120',
             'municipio' => 'nullable|string|max:120',
             'freguesia' => 'nullable|string|max:160',
         ]);
@@ -51,43 +61,52 @@ class PointsInterestController extends Controller
         if (!$user || !isset($user->gfuser_id)) {
             return response()->json(['exists' => false]);
         }
-        $userId = (int) $user->gfuser_id;
 
+        $userId = (int) $user->gfuser_id;
         $conn = DB::connection('mysql2');
 
-        $distritoId  = !empty($data['distrito'])  ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id') : null;
-        $municipioId = !empty($data['municipio']) ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id') : null;
-        $freguesiaId = !empty($data['freguesia']) ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id') : null;
+        $distritoId = !empty($data['distrito'])
+            ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
+            : null;
+        $municipioId = !empty($data['municipio'])
+            ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id')
+            : null;
+        $freguesiaId = !empty($data['freguesia'])
+            ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
+            : null;
 
         $q = (new Pontos_Interesse())->setConnection('mysql2')->newQuery()
             ->where('gfuser_id', $userId)
             ->where('nome', $data['pesquisa']);
 
-        if ($distritoId)  $q->where('distrito_id', $distritoId);
+        if ($distritoId) $q->where('distrito_id', $distritoId);
         if ($municipioId) $q->where('municipio_id', $municipioId);
         if ($freguesiaId) $q->where('freguesia_id', $freguesiaId);
 
         return response()->json(['exists' => $q->exists()]);
     }
 
+    /**
+     * Armazena um ponto de interesse
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'pesquisa'  => 'required|string|max:255',
-            'distrito'  => 'required|string|max:120',
+            'pesquisa' => 'required|string|max:255',
+            'distrito' => 'required|string|max:120',
             'municipio' => 'required|string|max:120',
             'freguesia' => 'required|string|max:160',
         ]);
 
         $conn = DB::connection('mysql2');
 
-        $distritoId  = $conn->table('distritos')->where('nome', $data['distrito'])->value('id');
+        $distritoId = $conn->table('distritos')->where('nome', $data['distrito'])->value('id');
         $municipioId = $conn->table('municipios')->where('nome', $data['municipio'])->value('id');
         $freguesiaId = $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id');
 
         if (!$distritoId || !$municipioId || !$freguesiaId) {
             return back()->withInput()->withErrors([
-                'distrito'  => !$distritoId ? 'Distrito inválido.' : null,
+                'distrito' => !$distritoId ? 'Distrito inválido.' : null,
                 'municipio' => !$municipioId ? 'Município inválido.' : null,
                 'freguesia' => !$freguesiaId ? 'Freguesia inválida.' : null,
             ]);
@@ -97,8 +116,10 @@ class PointsInterestController extends Controller
         if (!$user || !isset($user->gfuser_id)) {
             return back()->withInput()->withErrors(['pesquisa' => 'Utilizador não autenticado.']);
         }
+
         $userId = (int) $user->gfuser_id;
 
+        // Verifica duplicados
         $alreadyExists = (new Pontos_Interesse())
             ->setConnection('mysql2')
             ->newQuery()
@@ -115,21 +136,22 @@ class PointsInterestController extends Controller
             ]);
         }
 
+        // Configuração da API Google Places
         $apiKey = config('services.google_maps.key');
         if (!$apiKey) {
             return back()->withInput()->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
         }
 
         $headers = [
-            'Content-Type'     => 'application/json',
-            'X-Goog-Api-Key'   => $apiKey,
+            'Content-Type' => 'application/json',
+            'X-Goog-Api-Key' => $apiKey,
             'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types,nextPageToken',
         ];
 
         $baseBody = [
-            'textQuery'  => $data['pesquisa'],
+            'textQuery' => $data['pesquisa'],
             'regionCode' => 'PT',
-            'pageSize'   => 20,
+            'pageSize' => 20,
             'locationBias' => [
                 'circle' => [
                     'center' => ['latitude' => 39.3999, 'longitude' => -8.2245],
@@ -159,7 +181,6 @@ class PointsInterestController extends Controller
 
             $places = $resp->json('places') ?? [];
             $allPlaces = array_merge($allPlaces, $places);
-
             $pageToken = $resp->json('nextPageToken');
             if (!$pageToken) break;
         }
@@ -168,60 +189,63 @@ class PointsInterestController extends Controller
             return back()->withInput()->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
         }
 
+        // Salva no banco de dados
         DB::connection('mysql2')->beginTransaction();
-
         try {
             foreach ($allPlaces as $p) {
-                if (!isset($p['id'], $p['location']['latitude'], $p['location']['longitude'])) {
-                    continue;
-                }
+                if (!isset($p['id'], $p['location']['latitude'], $p['location']['longitude'])) continue;
 
                 $formatted = $p['formattedAddress'] ?? null;
-
                 $cpDigits = $this->extractCpDigits($formatted);
-                if (!$cpDigits) {
-                    continue;
-                }
+                if (!$cpDigits) continue;
 
-                $hier = $this->cpToHierarchy($conn, $cpDigits);
-                if (!$hier) {
-                    continue;
-                }
+                $formatted = $p['formattedAddress'] ?? null;
+$cpDigits = $this->extractCpDigits($formatted);
+$hier = null;
 
-                if ((int)$hier->freguesia_id !== (int)$freguesiaId) {
-                    continue;
-                }
+if ($cpDigits) {
+    $hier = $this->cpToHierarchy($conn, $cpDigits);
+}
 
-                if (
-                    (int)$hier->municipio_id !== (int)$municipioId ||
-                    (int)$hier->distrito_id  !== (int)$distritoId
-                ) {
-                    continue;
-                }
+// Se CP não bater com a tabela, usa o que o usuário selecionou
+if (!$hier) {
+    $hier = (object)[
+        'distrito_id' => $distritoId,
+        'municipio_id' => $municipioId,
+        'freguesia_id' => $freguesiaId,
+    ];
+}
 
-                $place = (new Place())->setConnection('mysql2')->newQuery()->updateOrCreate(
-                    ['place_id' => $p['id']],
-                    [
-                        'name'              => $p['displayName']['text'] ?? '',
-                        'formatted_address' => $formatted,
-                        'lat'               => (float) $p['location']['latitude'],
-                        'lng'               => (float) $p['location']['longitude'],
-                        'types'             => $p['types'] ?? null,
+// Agora só salva se o CP ou fallback coincidir com o local selecionado
+if ((int)$hier->freguesia_id !== (int)$freguesiaId ||
+    (int)$hier->municipio_id !== (int)$municipioId ||
+    (int)$hier->distrito_id !== (int)$distritoId) {
+    continue; // descarta se não bater
+}
 
-                        'distrito_id'       => (int)$hier->distrito_id,
-                        'municipio_id'      => (int)$hier->municipio_id,
-                        'freguesia_id'      => (int)$hier->freguesia_id,
-                    ]
-                );
+// Salva o lugar
+$place = (new Place())->setConnection('mysql2')->newQuery()->updateOrCreate(
+    ['place_id' => $p['id']],
+    [
+        'name' => $p['displayName']['text'] ?? '',
+        'formatted_address' => $formatted,
+        'lat' => (float)$p['location']['latitude'],
+        'lng' => (float)$p['location']['longitude'],
+        'types' => $p['types'] ?? null,
+        'distrito_id' => (int)$hier->distrito_id,
+        'municipio_id' => (int)$hier->municipio_id,
+        'freguesia_id' => (int)$hier->freguesia_id,
+    ]
+);
 
                 (new Pontos_Interesse())->setConnection('mysql2')->newQuery()->firstOrCreate(
                     [
                         'gfuser_id' => $userId,
-                        'place_id'  => $place->place_id,
+                        'place_id' => $place->place_id,
                     ],
                     [
-                        'nome'         => $data['pesquisa'],
-                        'distrito_id'  => $distritoId,
+                        'nome' => $data['pesquisa'],
+                        'distrito_id' => $distritoId,
                         'municipio_id' => $municipioId,
                         'freguesia_id' => $freguesiaId,
                     ]
@@ -229,8 +253,8 @@ class PointsInterestController extends Controller
 
                 (new SearchHistory())->setConnection('mysql2')->newQuery()->create([
                     'gfuser_id' => $userId,
-                    'place_id'  => $place->place_id,
-                    'query'     => $data['pesquisa'],
+                    'place_id' => $place->place_id,
+                    'query' => $data['pesquisa'],
                 ]);
             }
 
@@ -244,13 +268,16 @@ class PointsInterestController extends Controller
         return redirect()->route('interest')->with('success', 'Pesquisa guardada com sucesso.');
     }
 
+    /**
+     * Lista pontos de interesse do usuário
+     */
     public function interestview(Request $request)
     {
         if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
         }
 
-        $perPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
+        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
         $userId = (int) auth()->user()->gfuser_id;
 
         $groupsPage = DB::connection('mysql2')
@@ -284,10 +311,7 @@ class PointsInterestController extends Controller
             ->paginate($perPage);
 
         $groups = collect($groupsPage->items());
-
-        $keys = $groups->map(fn ($g) =>
-            $g->nome.'|'.$g->distrito_id.'|'.$g->municipio_id.'|'.$g->freguesia_id
-        )->values()->all();
+        $keys = $groups->map(fn($g) => $g->nome.'|'.$g->distrito_id.'|'.$g->municipio_id.'|'.$g->freguesia_id)->values()->all();
 
         $rows = DB::connection('mysql2')
             ->table('pontos_interesse as pi')
@@ -309,9 +333,7 @@ class PointsInterestController extends Controller
             ->orderBy('pi.nome')
             ->orderBy('p.name')
             ->get()
-            ->groupBy(fn ($r) =>
-                $r->nome.'|'.$r->distrito_id.'|'.$r->municipio_id.'|'.$r->freguesia_id
-            );
+            ->groupBy(fn($r) => $r->nome.'|'.$r->distrito_id.'|'.$r->municipio_id.'|'.$r->freguesia_id);
 
         return view('interest.index', [
             'groupsPage' => $groupsPage,
@@ -319,30 +341,39 @@ class PointsInterestController extends Controller
         ]);
     }
 
+    /**
+     * Lista todos os lugares
+     */
     public function placesview(Request $request)
     {
         if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
         }
 
-        $perPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
-
+        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
         $places = Place::orderBy('id')->paginate($perPage);
 
         return view('places.index', compact('places'));
     }
 
+    /**
+     * Formulário de pesquisa de interesse
+     */
     public function interestaddview()
     {
         return view('interest.form-pesquisa');
     }
 
+    /**
+     * Lista nomes únicos de pontos de interesse do usuário
+     */
     public function names(Request $request)
     {
         $user = auth()->user();
         if (!$user || !isset($user->gfuser_id)) {
             return response()->json(['names' => []], 200);
         }
+
         $userId = (int) $user->gfuser_id;
 
         $names = DB::connection('mysql2')
@@ -357,11 +388,14 @@ class PointsInterestController extends Controller
         return response()->json(['names' => $names], 200);
     }
 
+    /**
+     * Busca lugares por nome
+     */
     public function placesByName(Request $request)
     {
         $data = $request->validate([
-            'name'      => 'required|string|max:255',
-            'distrito'  => 'nullable|string|max:120',
+            'name' => 'required|string|max:255',
+            'distrito' => 'nullable|string|max:120',
             'municipio' => 'nullable|string|max:120',
             'freguesia' => 'nullable|string|max:160',
         ]);
@@ -370,13 +404,21 @@ class PointsInterestController extends Controller
         if (!$user || !isset($user->gfuser_id)) {
             return response()->json(['places' => []], 200);
         }
-        $userId = (int) $user->gfuser_id;
 
+        $userId = (int) $user->gfuser_id;
         $conn = DB::connection('mysql2');
 
-        $distritoId  = !empty($data['distrito'])  ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id') : null;
-        $municipioId = !empty($data['municipio']) ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id') : null;
-        $freguesiaId = !empty($data['freguesia']) ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id') : null;
+        $distritoId = !empty($data['distrito'])
+            ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
+            : null;
+
+        $municipioId = !empty($data['municipio'])
+            ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id')
+            : null;
+
+        $freguesiaId = !empty($data['freguesia'])
+            ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
+            : null;
 
         $q = $conn->table('pontos_interesse as pi')
             ->join('places as p', 'p.place_id', '=', 'pi.place_id')
@@ -391,7 +433,7 @@ class PointsInterestController extends Controller
                 'p.types'
             );
 
-        if ($distritoId)  $q->where('pi.distrito_id', $distritoId);
+        if ($distritoId) $q->where('pi.distrito_id', $distritoId);
         if ($municipioId) $q->where('pi.municipio_id', $municipioId);
         if ($freguesiaId) $q->where('pi.freguesia_id', $freguesiaId);
 
