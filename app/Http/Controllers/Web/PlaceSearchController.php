@@ -77,7 +77,6 @@ class PlaceSearchController extends Controller
 
         $queryNorm = trim(mb_strtolower($data['query']));
 
-        // ligação usada pelo model Place
         $connName = (new Place())->getConnectionName() ?: config('database.default');
         $conn = DB::connection($connName);
 
@@ -99,11 +98,9 @@ class PlaceSearchController extends Controller
             $googleTypes = array_slice($googleTypes, 0, 20);
         }
 
-        // zona por nomes -> ids
         [$distritoId, $municipioId, $freguesiaId] = $this->resolveZonaIds($conn, $data);
         $isFilteringByZona = (bool)($distritoId || $municipioId || $freguesiaId);
 
-        // 1) tenta BD primeiro (com filtro por zona)
         $dbQuery = Place::on($connName)
             ->whereRaw('LOWER(name) LIKE ?', ['%' . $queryNorm . '%']);
 
@@ -129,7 +126,6 @@ class PlaceSearchController extends Controller
             ]);
         }
 
-        // 2) Google
         $apiKey = config('services.google_maps.key');
         if (!$apiKey) {
             return response()->json(['error' => 'Google Maps key not configured'], 500);
@@ -200,7 +196,6 @@ class PlaceSearchController extends Controller
             $addr  = $p['formattedAddress'] ?? null;
             $types = $p['types'] ?? null;
 
-            // CP -> hierarquia
             $cpDigits = $this->extractCpDigits($addr);
 
             if ($isFilteringByZona && !$cpDigits) { $skipped++; continue; }
@@ -210,7 +205,6 @@ class PlaceSearchController extends Controller
 
             if ($isFilteringByZona && !$hier) { $skipped++; continue; }
 
-            // filtro por zona (se pedido)
             if ($isFilteringByZona && $hier) {
                 if ($freguesiaId && (int)$hier->freguesia_id !== (int)$freguesiaId) { $skipped++; continue; }
                 if ($municipioId && (int)$hier->municipio_id !== (int)$municipioId) { $skipped++; continue; }
@@ -227,7 +221,6 @@ class PlaceSearchController extends Controller
                         'lng'               => (float)$loc['longitude'],
                         'types'             => $types,
 
-                        // grava automaticamente
                         'distrito_id'       => $hier->distrito_id ?? null,
                         'municipio_id'      => $hier->municipio_id ?? null,
                         'freguesia_id'      => $hier->freguesia_id ?? null,

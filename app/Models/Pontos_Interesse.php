@@ -11,6 +11,5 @@ class Pontos_Interesse extends Model
 
     protected $connection = 'mysql2';
     protected $table = 'pontos_interesse';
-    public $timestamps;
     protected $guarded = [];
 }

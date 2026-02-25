@@ -2,8 +2,8 @@
 
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.zones') => route('interest'),
-        isset($zone) ? __('zones.edit') : __('zones.newZone') => '#',
+        __('navbar.p_interest') => route('interest'),
+        __('index.create') => '#',
     ]" />
 @endsection
 

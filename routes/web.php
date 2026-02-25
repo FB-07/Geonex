@@ -44,9 +44,6 @@ Route::middleware(['web', Language::class])->group(function () {
         Route::get('/interest/add', [PointsInterestController::class,'interestaddview'])->name('interest-add');
         Route::post('/interest/add', [PointsInterestController::class,'store'])->name('interest-controller');
         Route::post('/interest/check', [PointsInterestController::class, 'check'])->name('interest-check');
-
-        Route::get('/pontos-interesse/names', [PointsInterestController::class, 'names']);
-        Route::post('/pontos-interesse/places', [PointsInterestController::class, 'placesByName']);
     });
 });
 

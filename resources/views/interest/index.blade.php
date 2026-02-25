@@ -10,7 +10,7 @@
 
     <div class="mb-4">
         <x-button-link class="bg-gray-700" :href="route('interest-add')">
-            Adicionar
+            Criar
         </x-button-link>
     </div>
 
@@ -52,15 +52,6 @@
                                             :deleteData="route('interest', $key)"
                                         />
                                     </span>
-
-                                    {{--
-                                    <span class="text-gray-500 group-open:hidden">
-                                        <x-tecnical-tactions
-                                            :editData="route('interest', $key)"
-                                            :deleteData="route('interest', $key)"
-                                        />
-                                    </span>
-                                    --}}
                                 </summary>
 
                                 <div class="box mt-2 px-3 pb-4">
@@ -88,11 +79,8 @@
                                         <tbody class="divide-y divide-gray-200 text-gray-500">
                                             @forelse ($places as $p)
                                                 <tr>
-                                                    <td class="px-3 py-3.5 text-sm text-gray-900 font-medium">
+                                                    <td class="px-3 py-3.5 text-sm">
                                                         {{ $p->name }}
-                                                        <div class="text-xs text-gray-400">
-                                                            {{ $p->place_id }}
-                                                        </div>
                                                     </td>
 
                                                     <td class="px-3 py-3.5 text-sm">
@@ -162,6 +150,7 @@
             {{ $groupsPage->links() }}
         </div>
     </div>
+    
     @push('scripts')
         <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -171,3 +160,4 @@
     @endpush
 
 @endsection
+
