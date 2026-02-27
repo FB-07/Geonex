@@ -14,12 +14,11 @@ class TecnicalController extends Controller
     public function placesview(Request $request)
     {
         if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
+            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
         }
- 
-        $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
- 
-        $places = Place::orderBy('id')->paginate($resultsPerPage);
+
+        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
+        $places = Place::orderBy('id')->paginate($perPage);
 
         return view('places.index', compact('places'));
     }

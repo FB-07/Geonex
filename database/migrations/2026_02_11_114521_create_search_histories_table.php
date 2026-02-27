@@ -10,7 +10,9 @@ return new class extends Migration{
         Schema::create('search_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('gfuser_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('place_id')->constrained()->cascadeOnDelete();
+            $table->foreign('gfuser_id')->references('gfuser_id')->on('users')->onDelete('cascade');
+            $table->string('place_id', 150);
+            $table->foreign('place_id')->references('place_id')->on('places')->onDelete('cascade');
             $table->string('query')->nullable();
 
             $table->timestamps();

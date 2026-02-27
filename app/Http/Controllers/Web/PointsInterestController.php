@@ -12,12 +12,256 @@ use Illuminate\Support\Facades\Http;
 
 class PointsInterestController extends Controller
 {
+    public function index(Request $request)
+    {
+        if ($request->filled('resultsPerPage')) {
+            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
+        }
+
+        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
+        $userId  = (int) auth()->user()->gfuser_id;
+
+        $groupsPage = DB::connection('mysql2')
+            ->table('pontos_interesse as pi')
+            ->leftJoin('distritos as d', 'd.id', '=', 'pi.distrito_id')
+            ->leftJoin('municipios as m', 'm.id', '=', 'pi.municipio_id')
+            ->leftJoin('freguesias as f', 'f.id', '=', 'pi.freguesia_id')
+            ->where('pi.gfuser_id', $userId)
+            ->select(
+                'pi.nome',
+                'pi.distrito_id',
+                'pi.municipio_id',
+                'pi.freguesia_id',
+                'd.nome as distrito_nome',
+                'm.nome as municipio_nome',
+                'f.nome as freguesia_nome'
+            )
+            ->groupBy('pi.nome')
+            ->orderBy('pi.nome')
+            ->paginate($perPage);
+
+        $allPlaces = DB::connection('mysql2')
+            ->table('pontos_interesse as pi')
+            ->join('places as p', 'p.place_id', '=', 'pi.place_id')
+            ->where('pi.gfuser_id', $userId)
+            ->select('pi.nome', 'p.*')
+            ->get()
+            ->groupBy('nome');
+
+        return view('interest.index', [
+            'groupsPage'    => $groupsPage,
+            'placesByGroup' => $allPlaces,
+        ]);
+    }
+
+    public function create()
+    {
+        return view('interest.form-pesquisa');
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'pesquisa'  => 'required|string|max:255',
+            'distrito'  => 'nullable|string|max:120',
+            'municipio' => 'nullable|string|max:120',
+            'freguesia' => 'nullable|string|max:160',
+        ]);
+
+        $user = auth()->user();
+        if (!$user || !isset($user->gfuser_id)) {
+            return redirect()->route('interest.create')
+                ->withErrors(['pesquisa' => 'Utilizador não autenticado.']);
+        }
+
+        $userId = (int) $user->gfuser_id;
+        $conn   = DB::connection('mysql2');
+
+        $distritoId  = !empty($data['distrito'])  ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id') : null;
+        $municipioId = !empty($data['municipio']) ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id') : null;
+        $freguesiaId = !empty($data['freguesia']) ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id') : null;
+
+        $search = trim(mb_strtolower($data['pesquisa']));
+        $apiKey = config('services.google_maps.key');
+
+        if (!$apiKey) {
+            return redirect()->route('interest.create')
+                ->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
+        }
+
+        $response = Http::timeout(20)->withHeaders([
+            'Content-Type'     => 'application/json',
+            'X-Goog-Api-Key'   => $apiKey,
+            'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
+        ])->post('https://places.googleapis.com/v1/places:searchText', [
+            'textQuery'  => $data['pesquisa'],
+            'regionCode' => 'PT'
+        ]);
+
+        if (!$response->successful()) {
+            return redirect()->route('interest.create')
+                ->withInput()
+                ->withErrors(['pesquisa' => 'Erro na API Google.']);
+        }
+
+        $places = $response->json('places') ?? [];
+
+        if (empty($places)) {
+            return redirect()->route('interest.create')
+                ->withInput()
+                ->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
+        }
+
+        DB::connection('mysql2')->beginTransaction();
+
+        try {
+            $savedCount = 0;
+
+            foreach ($places as $p) {
+                if (!isset($p['formattedAddress'])) continue;
+
+                $formatted = $p['formattedAddress'];
+                $cpDigits  = $this->extractCpDigits($formatted);
+                if (!$cpDigits) continue;
+
+                $hier = $this->cpToHierarchy($conn, $cpDigits);
+                if (!$hier) continue;
+
+                if ($distritoId !== null && $hier->distrito_id != $distritoId) continue;
+                if ($municipioId !== null && $hier->municipio_id != $municipioId) continue;
+                if ($freguesiaId !== null && $hier->freguesia_id != $freguesiaId) continue;
+
+                $place = (new Place())
+                    ->setConnection('mysql2')
+                    ->newQuery()
+                    ->updateOrCreate(
+                        ['place_id' => $p['id']],
+                        [
+                            'name'              => $p['displayName']['text'] ?? '',
+                            'formatted_address' => $formatted,
+                            'lat'               => $p['location']['latitude'] ?? null,
+                            'lng'               => $p['location']['longitude'] ?? null,
+                            'types'             => $p['types'] ?? null,
+                            'distrito_id'       => $hier->distrito_id,
+                            'municipio_id'      => $hier->municipio_id,
+                            'freguesia_id'      => $hier->freguesia_id,
+                        ]
+                    );
+
+                (new Pontos_Interesse())
+                    ->setConnection('mysql2')
+                    ->newQuery()
+                    ->updateOrCreate(
+                        [
+                            'gfuser_id' => $userId,
+                            'place_id'  => $place->place_id,
+                        ],
+                        [
+                            'nome'         => $data['pesquisa'],
+                            'distrito_id'  => $distritoId,
+                            'municipio_id' => $municipioId,
+                            'freguesia_id' => $freguesiaId,
+                        ]
+                    );
+
+                (new SearchHistory())
+                    ->setConnection('mysql2')
+                    ->newQuery()
+                    ->create([
+                        'gfuser_id' => $userId,
+                        'place_id'  => $place->place_id,
+                        'query'     => $data['pesquisa'],
+                    ]);
+
+                $savedCount++;
+            }
+
+            if ($savedCount === 0) {
+                DB::connection('mysql2')->rollBack();
+                return redirect()->route('interest.create')
+                    ->withInput()
+                    ->withErrors(['pesquisa' => 'Nenhum resultado corresponde aos filtros selecionados.']);
+            }
+
+            DB::connection('mysql2')->commit();
+        } catch (\Throwable $e) {
+            DB::connection('mysql2')->rollBack();
+            return redirect()->route('interest.create')
+                ->withInput()
+                ->withErrors(['pesquisa' => 'Erro interno ao guardar.']);
+        }
+
+        return redirect()->route('interest.index')
+            ->with('success', 'Pesquisa guardada com sucesso.');
+    }
+
+    public function edit($nome)
+    {
+        $userId = (int) auth()->user()->gfuser_id;
+
+        $poi = DB::connection('mysql2')
+            ->table('pontos_interesse')
+            ->where('gfuser_id', $userId)
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
+            ->first();
+
+        if (!$poi) {
+            return redirect()->route('interest.index')
+                ->withErrors(['nome' => 'POI não encontrado.']);
+        }
+
+        return view('interest.edit', [
+            'poi' => $poi,
+        ]);
+    }
+
+    public function update(Request $request, $nome)
+    {
+        $request->validate([
+            'nome' => 'required|string|max:255',
+        ]);
+
+        $userId = (int) auth()->user()->gfuser_id;
+
+        $updated = DB::connection('mysql2')
+            ->table('pontos_interesse')
+            ->where('gfuser_id', $userId)
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
+            ->update([
+                'nome' => $request->input('nome'),
+            ]);
+
+        if (!$updated) {
+            return redirect()->route('interest.index')
+                ->withErrors(['nome' => 'Não foi possível atualizar o POI.']);
+        }
+
+        return redirect()->route('interest.index')
+            ->with('success', 'Nome do POI atualizado com sucesso.');
+    }
+
+    public function destroy($nome)
+    {
+        $userId = (int) auth()->user()->gfuser_id;
+
+        DB::connection('mysql2')
+            ->table('pontos_interesse')
+            ->where('gfuser_id', $userId)
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
+            ->delete();
+
+        return redirect()->route('interest.index')
+            ->with('success', 'POI apagado com sucesso.');
+    }
+
     private function extractCpDigits(?string $formattedAddress): ?string
     {
         if (!$formattedAddress) return null;
+
         if (!preg_match('/\b(\d{4})\s*[-\s]\s*(\d{3})\b/u', $formattedAddress, $m)) {
             return null;
         }
+
         return $m[1] . $m[2];
     }
 
@@ -36,11 +280,74 @@ class PointsInterestController extends Controller
             ->first();
     }
 
+    public function names(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !isset($user->gfuser_id)) {
+            return response()->json(['names' => []], 200);
+        }
+
+        $userId = (int) $user->gfuser_id;
+
+        $names = DB::connection('mysql2')
+            ->table('pontos_interesse')
+            ->where('gfuser_id', $userId)
+            ->selectRaw('MIN(nome) as nome')
+            ->groupBy(DB::raw('LOWER(nome)'))
+            ->orderByRaw('MIN(nome) ASC')
+            ->pluck('nome')
+            ->values();
+
+        return response()->json(['names' => $names], 200);
+    }
+
+    public function placesByName(Request $request)
+    {
+        $data = $request->validate([
+            'name'      => 'required|string|max:255',
+            'distrito'  => 'nullable|string|max:120',
+            'municipio' => 'nullable|string|max:120',
+            'freguesia' => 'nullable|string|max:160',
+        ]);
+
+        $user = auth()->user();
+        if (!$user || !isset($user->gfuser_id)) {
+            return response()->json(['places' => []], 200);
+        }
+        $userId = (int) $user->gfuser_id;
+        $conn = DB::connection('mysql2');
+
+        $distritoId  = !empty($data['distrito'])  ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id') : null;
+        $municipioId = !empty($data['municipio']) ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id') : null;
+        $freguesiaId = !empty($data['freguesia']) ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id') : null;
+
+        $q = $conn->table('pontos_interesse as pi')
+            ->join('places as p', 'p.place_id', '=', 'pi.place_id')
+            ->where('pi.gfuser_id', $userId)
+            ->whereRaw('LOWER(pi.nome) = ?', [mb_strtolower($data['name'])])
+            ->select(
+                'p.place_id',
+                'p.name',
+                'p.formatted_address',
+                'p.lat',
+                'p.lng',
+                'p.types'
+            );
+
+        if ($distritoId)  $q->where('pi.distrito_id', $distritoId);
+        if ($municipioId) $q->where('pi.municipio_id', $municipioId);
+        if ($freguesiaId) $q->where('pi.freguesia_id', $freguesiaId);
+
+        $places = $q->get();
+
+        return response()->json(['places' => $places], 200);
+    }
+
     public function check(Request $request)
     {
         $data = $request->validate([
-            'pesquisa' => 'required|string|max:255',
-            'distrito' => 'nullable|string|max:120',
+            'pesquisa'  => 'required|string|max:255',
+            'distrito'  => 'nullable|string|max:120',
             'municipio' => 'nullable|string|max:120',
             'freguesia' => 'nullable|string|max:160',
         ]);
@@ -51,273 +358,14 @@ class PointsInterestController extends Controller
         }
 
         $userId = (int) $user->gfuser_id;
-        $conn = DB::connection('mysql2');
-
-        $distritoId = !empty($data['distrito'])
-            ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
-            : null;
-        $municipioId = !empty($data['municipio'])
-            ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id')
-            : null;
-        $freguesiaId = !empty($data['freguesia'])
-            ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
-            : null;
-
-        $q = (new Pontos_Interesse())
-            ->setConnection('mysql2')
-            ->newQuery()
+        $q = DB::connection('mysql2')->table('pontos_interesse')
             ->where('gfuser_id', $userId)
-            ->where('nome', $data['pesquisa']);
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($data['pesquisa'])]);
 
-        if ($distritoId) $q->where('distrito_id', $distritoId);
-        if ($municipioId) $q->where('municipio_id', $municipioId);
-        if ($freguesiaId) $q->where('freguesia_id', $freguesiaId);
+        if (!empty($data['distrito']))  $q->where('distrito_id', $data['distrito']);
+        if (!empty($data['municipio'])) $q->where('municipio_id', $data['municipio']);
+        if (!empty($data['freguesia'])) $q->where('freguesia_id', $data['freguesia']);
 
         return response()->json(['exists' => $q->exists()]);
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'pesquisa' => 'required|string|max:255',
-            'distrito' => 'required|string|max:120',
-            'municipio' => 'required|string|max:120',
-            'freguesia' => 'required|string|max:160',
-        ]);
-
-        $conn = DB::connection('mysql2');
-        $distritoId = $conn->table('distritos')->where('nome', $data['distrito'])->value('id');
-        $municipioId = $conn->table('municipios')->where('nome', $data['municipio'])->value('id');
-        $freguesiaId = $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id');
-
-        if (!$distritoId || !$municipioId || !$freguesiaId) {
-            return back()->withErrors(['pesquisa' => 'Localização inválida.'])->withInput();
-        }
-
-        $user = auth()->user();
-        if (!$user || !isset($user->gfuser_id)) {
-            return back()->withErrors(['pesquisa' => 'Utilizador não autenticado.']);
-        }
-
-        $userId = (int) $user->gfuser_id;
-        $search = trim(mb_strtolower($data['pesquisa']));
-
-        $existingPlaces = $conn->table('places')
-            ->where('freguesia_id', $freguesiaId)
-            ->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
-            ->get();
-
-        if ($existingPlaces->isNotEmpty()) {
-            foreach ($existingPlaces as $place) {
-                (new Pontos_Interesse())
-                    ->setConnection('mysql2')
-                    ->newQuery()
-                    ->firstOrCreate(
-                        ['gfuser_id' => $userId, 'place_id' => $place->place_id],
-                        [
-                            'nome' => $data['pesquisa'],
-                            'distrito_id' => $distritoId,
-                            'municipio_id' => $municipioId,
-                            'freguesia_id' => $freguesiaId,
-                        ]
-                    );
-
-                (new SearchHistory())
-                    ->setConnection('mysql2')
-                    ->newQuery()
-                    ->create([
-                        'gfuser_id' => $userId,
-                        'place_id' => $place->place_id,
-                        'query' => $data['pesquisa'],
-                    ]);
-            }
-
-            return redirect()->route('interest')
-                ->with('success', 'Resultados encontrados na base de dados.');
-        }
-
-        $apiKey = config('services.google_maps.key');
-        if (!$apiKey) {
-            return back()->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
-        }
-
-        $response = Http::timeout(20)->withHeaders([
-            'Content-Type' => 'application/json',
-            'X-Goog-Api-Key' => $apiKey,
-            'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-        ])->post('https://places.googleapis.com/v1/places:searchText', [
-            'textQuery' => $data['pesquisa'],
-            'regionCode' => 'PT'
-        ]);
-
-        if (!$response->successful()) {
-            return back()->withErrors(['pesquisa' => 'Erro na API Google.']);
-        }
-
-        $places = $response->json('places') ?? [];
-
-        if (empty($places)) {
-            return back()->withInput()->withErrors(['pesquisa' => 'Nenhum resultado encontrado para essa freguesia.']);
-        }
-
-        DB::connection('mysql2')->beginTransaction();
-        $found = false;
-
-        try {
-            foreach ($places as $p) {
-                if (!isset($p['formattedAddress'])) continue;
-                $formatted = $p['formattedAddress'];
-                $cpDigits = $this->extractCpDigits($formatted);
-                if (!$cpDigits) continue;
-
-                $hier = $this->cpToHierarchy($conn, $cpDigits);
-                if (!$hier || (int)$hier->freguesia_id !== (int)$freguesiaId) continue;
-
-                $found = true;
-
-                $place = (new Place())
-                    ->setConnection('mysql2')
-                    ->newQuery()
-                    ->updateOrCreate(
-                        ['place_id' => $p['id']],
-                        [
-                            'name' => $p['displayName']['text'] ?? '',
-                            'formatted_address' => $formatted,
-                            'lat' => $p['location']['latitude'] ?? null,
-                            'lng' => $p['location']['longitude'] ?? null,
-                            'types' => $p['types'] ?? null,
-                            'distrito_id' => $distritoId,
-                            'municipio_id' => $municipioId,
-                            'freguesia_id' => $freguesiaId,
-                        ]
-                    );
-
-                (new Pontos_Interesse())
-                    ->setConnection('mysql2')
-                    ->newQuery()
-                    ->firstOrCreate(
-                        ['gfuser_id' => $userId, 'place_id' => $place->place_id],
-                        [
-                            'nome' => $data['pesquisa'],
-                            'distrito_id' => $distritoId,
-                            'municipio_id' => $municipioId,
-                            'freguesia_id' => $freguesiaId,
-                        ]
-                    );
-
-                (new SearchHistory())
-                    ->setConnection('mysql2')
-                    ->newQuery()
-                    ->create([
-                        'gfuser_id' => $userId,
-                        'place_id' => $place->place_id,
-                        'query' => $data['pesquisa'],
-                    ]);
-            }
-
-            if (!$found) {
-                DB::connection('mysql2')->rollBack();
-                return back()->withInput()->withErrors([
-                    'pesquisa' => 'Nenhum resultado encontrado dentro da freguesia selecionada.'
-                ]);
-            }
-
-            DB::connection('mysql2')->commit();
-        } catch (\Throwable $e) {
-            DB::connection('mysql2')->rollBack();
-            return back()->withInput()->withErrors(['pesquisa' => 'Erro interno ao guardar.']);
-        }
-
-        return redirect()->route('interest')->with('success', 'Pesquisa guardada com sucesso.');
-    }
-
-    public function interestview(Request $request)
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
-        }
-
-        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
-        $userId = (int) auth()->user()->gfuser_id;
-
-        $groupsPage = DB::connection('mysql2')
-            ->table('pontos_interesse as pi')
-            ->join('distritos as d', 'd.id', '=', 'pi.distrito_id')
-            ->join('municipios as m', 'm.id', '=', 'pi.municipio_id')
-            ->join('freguesias as f', 'f.id', '=', 'pi.freguesia_id')
-            ->where('pi.gfuser_id', $userId)
-            ->select(
-                'pi.nome',
-                'pi.distrito_id',
-                'pi.municipio_id',
-                'pi.freguesia_id',
-                'd.nome as distrito_nome',
-                'm.nome as municipio_nome',
-                'f.nome as freguesia_nome'
-            )
-            ->groupBy(
-                'pi.nome',
-                'pi.distrito_id',
-                'pi.municipio_id',
-                'pi.freguesia_id',
-                'd.nome',
-                'm.nome',
-                'f.nome'
-            )
-            ->orderBy('pi.nome')
-            ->orderBy('d.nome')
-            ->orderBy('m.nome')
-            ->orderBy('f.nome')
-            ->paginate($perPage);
-
-        $groups = collect($groupsPage->items());
-        $keys = $groups->map(fn($g) => $g->nome.'|'.$g->distrito_id.'|'.$g->municipio_id.'|'.$g->freguesia_id)
-            ->values()
-            ->all();
-
-        $rows = DB::connection('mysql2')
-            ->table('pontos_interesse as pi')
-            ->join('places as p', 'p.place_id', '=', 'pi.place_id')
-            ->where('pi.gfuser_id', $userId)
-            ->whereIn(DB::raw("CONCAT(pi.nome,'|',pi.distrito_id,'|',pi.municipio_id,'|',pi.freguesia_id)"), $keys)
-            ->select(
-                'pi.nome',
-                'pi.distrito_id',
-                'pi.municipio_id',
-                'pi.freguesia_id',
-                'p.place_id',
-                'p.name',
-                'p.formatted_address',
-                'p.lat',
-                'p.lng',
-                'p.types',
-                'p.created_at'
-            )
-            ->orderBy('pi.nome')
-            ->orderBy('p.name')
-            ->get()
-            ->groupBy(fn($r) => $r->nome.'|'.$r->distrito_id.'|'.$r->municipio_id.'|'.$r->freguesia_id);
-
-        return view('interest.index', [
-            'groupsPage' => $groupsPage,
-            'placesByGroup' => $rows,
-        ]);
-    }
-
-    public function placesview(Request $request)
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int)$request->input('resultsPerPage'));
-        }
-
-        $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
-        $places = Place::orderBy('id')->paginate($perPage);
-
-        return view('places.index', compact('places'));
-    }
-
-    public function interestaddview()
-    {
-        return view('interest.form-pesquisa');
     }
 }

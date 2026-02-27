@@ -2,8 +2,8 @@
 
 @section('breadcrumbs')
     <x-breadcrumbs class="mb-4" :links="[
-        __('navbar.p_interest') => route('interest'),
-        __('index.create') => '#',
+        __('navbar.p_interest') => route('interest.index'),
+        __('index.create') => route('interest.create'),
     ]" />
 @endsection
 
@@ -19,8 +19,9 @@
     @endif
 
     <div x-data class="h-full">
+        <x-heroicon-o-information-circle class="" />
 
-        <form action="{{ route('interest-controller') }}" method="POST" id="zone-form" class="flex flex-col h-[calc(100vh-150px)]">
+        <form action="{{ route('interest.store') }}" method="POST" id="zone-form" class="flex flex-col h-[calc(100vh-150px)]">
             @csrf
 
             <div class="box flex-1 flex flex-col overflow-y-auto gap-4 custom-scrollbar overflow-x-visible">
@@ -40,7 +41,7 @@
 
             {{-- Footer --}}
             <div class="mt-8 flex items-center justify-end gap-x-4">
-                <x-button-link class="bg-gray-700" :href="route('interest')">{{ __('index.cancel') }}</x-button-link>
+                <x-button-link class="bg-gray-700" :href="route('interest.index')">{{ __('index.cancel') }}</x-button-link>
                 <x-button type="submit">{{ __('index.save') }}</x-button>
             </div>
         </form>
@@ -48,8 +49,8 @@
 
     @push('scripts')
     <script>
-        window.checkInterestUrl = "{{ route('interest-check') }}";
+        window.checkInterestUrl = "{{ route('interest.check') }}";
     </script>
-    @vite('resources/js/pages/points_interest.js')
+    @vite('resources/js/pages/POI_form.js')
     @endpush
 @endsection

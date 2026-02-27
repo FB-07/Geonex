@@ -25,6 +25,7 @@ Route::middleware(['web', Language::class])->group(function () {
     Route::middleware('auth')->group(function () {
 
         Route::resource('map', MapController::class)->only('index');
+
         Route::resource('users', UsersController::class);
         Route::singleton('profile', ProfileController::class);
 
@@ -40,14 +41,18 @@ Route::middleware(['web', Language::class])->group(function () {
         Route::resource('places', PlaceController::class)
             ->only(['index','edit','update','destroy']);
 
-        Route::get('/interest', [PointsInterestController::class,'interestview'])->name('interest');
-        Route::get('/interest/add', [PointsInterestController::class,'interestaddview'])->name('interest-add');
-        Route::post('/interest/add', [PointsInterestController::class,'store'])->name('interest-controller');
-        Route::post('/interest/check', [PointsInterestController::class, 'check'])->name('interest-check');
+        Route::resource('interest', PointsInterestController::class)
+            ->only(['index', 'create', 'store', 'destroy']);
+
+        Route::post('/interest/check', [PointsInterestController::class, 'check'])->name('interest.check');
+        Route::get('/interest/{nome}/edit', [PointsInterestController::class, 'edit'])->name('interest.edit');
+        Route::put('/interest/{nome}', [PointsInterestController::class, 'update'])->name('interest.update');
+
+        Route::get('/pontos-interesse/names', [PointsInterestController::class, 'names']);
+        Route::post('/pontos-interesse/places', [PointsInterestController::class, 'placesByName']);
     });
 });
 
 Route::fallback(function () {
     return view('404/index');
 });
-

@@ -11,7 +11,7 @@ class Sections
                 [
                     'name' => __('navbar.p_interest'),
                     'icon' => 'bookmark',
-                    'link' => 'interest',
+                    'link' => 'interest.index',
                     'sub-routes' => [],
                 ],
             ],

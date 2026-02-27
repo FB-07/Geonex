@@ -62,17 +62,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function loadMunicipios(distrito) {
+        setOptions(municipioEl, [], 'A carregar municípios...');
         setDisabled(municipioEl, true);
-        const municipios = await fetch(`/api/municipios?distrito=${encodeURIComponent(distrito)}`).then(r => r.json());
-        setOptions(municipioEl, municipios, 'Selecione um município');
-        setDisabled(municipioEl, false);
+
+        try {
+            const municipios = await fetch(`/api/municipios?distrito=${encodeURIComponent(distrito)}`).then(r => r.json());
+            setOptions(municipioEl, municipios, 'Selecione um município');
+            setDisabled(municipioEl, false);
+        } catch (err) {
+            setOptions(municipioEl, [], 'Erro ao carregar municípios');
+            setDisabled(municipioEl, true);
+            console.error(err);
+        }
     }
 
     async function loadFreguesias(municipio) {
+        setOptions(freguesiaEl, [], 'A carregar freguesias...');
         setDisabled(freguesiaEl, true);
-        const freguesias = await fetch(`/api/freguesias?municipio=${encodeURIComponent(municipio)}`).then(r => r.json());
-        setOptions(freguesiaEl, freguesias, 'Selecione uma freguesia');
-        setDisabled(freguesiaEl, false);
+
+        try {
+            const freguesias = await fetch(`/api/freguesias?municipio=${encodeURIComponent(municipio)}`).then(r => r.json());
+            setOptions(freguesiaEl, freguesias, 'Selecione uma freguesia');
+            setDisabled(freguesiaEl, false);
+        } catch (err) {
+            setOptions(freguesiaEl, [], 'Erro ao carregar freguesias');
+            setDisabled(freguesiaEl, true);
+            console.error(err);
+        }
     }
     
     const input = document.querySelector('input[name="pesquisa"]');

@@ -276,7 +276,6 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
 
   const filters = getActiveFilters();
 
-  // ✅ NOVO: enviar filtros de zona só se filtro-zona estiver ativo
   const cbZona = el("filtro-zona");
   const sendZona = !!cbZona?.checked;
 
@@ -511,13 +510,13 @@ function initFiltros() {
   cbZona?.addEventListener("change", () => {
     if (cbZona.checked) {
       show(distritoDiv);
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
     } else {
       hide(distritoDiv);
       if (distritoSelect) distritoSelect.value = "";
       resetMunicipios();
       resetFreguesias();
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
     }
     toggleNoFiltro();
   });
@@ -557,7 +556,7 @@ function initFiltros() {
     resetMunicipios();
     resetFreguesias();
     if (!distrito) {
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
       return;
     }
 
@@ -580,7 +579,7 @@ function initFiltros() {
       });
 
       municipioSelect.disabled = false;
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
     } catch {
       if (myId !== municipiosReqId) return;
       municipioSelect.innerHTML = placeholderOption("Erro a carregar municípios");
@@ -592,7 +591,7 @@ function initFiltros() {
 
     resetFreguesias();
     if (!municipio) {
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
       return;
     }
 
@@ -615,7 +614,7 @@ function initFiltros() {
       });
 
       freguesiaSelect.disabled = false;
-      rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+      rerunSearchIfAny({ fitBounds: true });
     } catch {
       if (myId !== freguesiasReqId) return;
       freguesiaSelect.innerHTML = placeholderOption("Erro a carregar freguesias");
@@ -623,7 +622,7 @@ function initFiltros() {
   });
 
   freguesiaSelect?.addEventListener("change", () => {
-    rerunSearchIfAny({ fitBounds: true }); // ✅ NOVO
+    rerunSearchIfAny({ fitBounds: true });
   });
 
   categoriaSelect?.addEventListener("change", () => {
@@ -631,7 +630,6 @@ function initFiltros() {
   });
 }
 
-// ===== POI (mantido igual)
 async function fetchPOINames() {
   try {
     const res = await fetch("/pontos-interesse/names", {
