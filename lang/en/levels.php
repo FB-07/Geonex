@@ -16,6 +16,6 @@ return [
     'ctvdir' => 'CTV Directory',
     'delete' => 'Delete',
     'cancel' => 'Cancel',
-    
+    'colour' => 'Colour'
 
 ];

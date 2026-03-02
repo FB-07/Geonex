@@ -255,11 +255,11 @@ function colorFromString(str) {
   return `hsl(${hue}, 80%, 45%)`;
 }
 
-function makeMarkerIcon(term) {
+function makeMarkerIcon(name, color = null) {
   return {
     path: google.maps.SymbolPath.CIRCLE,
     scale: 8,
-    fillColor: colorFromString(term),
+    fillColor: color || colorFromString(name),
     fillOpacity: 1,
     strokeColor: "#ffffff",
     strokeWeight: 2,
@@ -721,7 +721,6 @@ async function bootstrapPOI() {
 
 async function togglePOI(name, checked) {
   if (!map) return;
-
   name = (name || "").trim();
   if (!name) return;
 
@@ -729,11 +728,8 @@ async function togglePOI(name, checked) {
 
   if (checked && !entry) {
     const places = await fetchPOIPlacesByName(name);
-
     if (!places.length) {
-      const cb = document.querySelector(
-        `input[type="checkbox"][data-poi="${CSS.escape(name)}"]`
-      );
+      const cb = document.querySelector(`input[type="checkbox"][data-poi="${CSS.escape(name)}"]`);
       if (cb) cb.checked = false;
       return;
     }
@@ -752,7 +748,7 @@ async function togglePOI(name, checked) {
         map,
         position: pos,
         title: p.name || name,
-        icon: makeMarkerIcon(`poi:${name}`),
+        icon: makeMarkerIcon(name, p.color || null), 
       });
 
       markers.push(marker);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Place extends Model
 {
@@ -47,5 +48,17 @@ class Place extends Model
     public function freguesia()
     {
         return $this->belongsTo(Freguesia::class);
+    }
+
+    public function pontosInteresse(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Pontos_Interesse::class,
+            'ponto_interesse_place',
+            'place_id',
+            'ponto_interesse_id',
+            'place_id',
+            'id'
+        );
     }
 }

@@ -19,16 +19,23 @@
     @endif
 
     <div x-data class="h-full">
-        <form action="{{ route('interest.update', $poi->nome) }}" method="POST" class="flex flex-col h-[calc(100vh-520px)]">
+        <form action="{{ route('interest.update', $poi->nome) }}" method="POST" class="flex flex-col h-[calc(100vh-430px)]">
             @csrf
             @method('PUT')
-            <div class="box flex-1 flex flex-col overflow-y-auto gap-4 custom-scrollbar overflow-x-visible">
+            <div class="box flex-1 flex flex-col overflow-y-auto custom-scrollbar overflow-x-visible">
                 <x-input
                     name="nome"
                     label="{{ __('levels.name') }}"
                     type="text"
                     value="{{ old('nome', $poi->nome) }}"
                     required
+                />
+                <x-input 
+                    type="color" 
+                    name="color" 
+                    label="{{ __('levels.colour') }}"
+                    id="color" 
+                    value="{{ old('color', $poi->color ?? '#ff0000') }}" 
                 />
             </div>
             <div class="mt-8 flex items-center justify-end gap-x-4">

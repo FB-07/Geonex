@@ -19,7 +19,7 @@
     @endif
 
     <div x-data class="h-full">
-        <x-heroicon-o-information-circle class="" />
+        <x-heroicon-o-information-circle class="hidden" />
 
         <form action="{{ route('interest.store') }}" method="POST" id="zone-form" class="flex flex-col h-[calc(100vh-150px)]">
             @csrf

@@ -16,6 +16,7 @@ return [
     'ctvdir' => 'Diretório CTV',
     'delete' => 'Apagar',
     'cancel' => 'Cancelar',
+    'colour' => 'Cor'
     
 
 ];
