@@ -10,7 +10,7 @@ class Sections
             __('navbar.p_interest')=>[
                 [
                     'name' => __('navbar.p_interest'),
-                    'icon' => 'bookmark',
+                    'icon' => 'map-pin',
                     'link' => 'interest',
                     'sub-routes' => [],
                 ],

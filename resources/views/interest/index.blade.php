@@ -33,19 +33,27 @@
                         <details class="group">
                             <summary class="list-none cursor-pointer px-3 py-3.5 text-sm flex items-center justify-between">
                                 <div class="flex flex-col">
-                                    <span class="font-medium text-gray-900">{{ $g->nome }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="details-icon text-gray-500">
+                                            <x-heroicon-o-chevron-right class="w-5 h-5"/>
+                                        </span>
+                                        <span class="font-medium text-gray-900">{{ $g->nome }}</span>
+                                    </div>
                                     <span class="text-xs text-gray-500 mt-0.5">
                                         {{ $g->distrito_nome ?? '-' }} /
                                         {{ $g->municipio_nome ?? '-' }} /
                                         {{ $g->freguesia_nome ?? '-' }}
                                     </span>
                                 </div>
-                                <span class="text-gray-500">
-                                    <x-tecnical-tactions 
-                                        :editData="route('interest.edit', $key)" 
-                                        :deleteData="route('interest.destroy', $key)" 
-                                    />
-                                </span>
+
+                                <div class="flex items-center gap-2">
+                                    <span class="text-gray-500">
+                                        <x-tecnical-tactions 
+                                            :editData="route('interest.edit', $key)" 
+                                            :deleteData="route('interest.destroy', $key)" 
+                                        />
+                                    </span>
+                                </div>
                             </summary>
 
                             <div class="box mt-2 px-3 pb-4">
@@ -57,6 +65,8 @@
                                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lat</th>
                                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lng</th>
                                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Tipos</th>
+                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"></th>
+
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 text-gray-500">
@@ -85,6 +95,18 @@
                                                         -
                                                     @endif
                                                 </td>
+                                                <td class="px-3 py-3.5 text-sm">
+                                                    <form method="POST" 
+                                                        action="{{ route('interest.place.detach', [$g->id, $p->place_id]) }}"
+                                                        onsubmit="return confirm('Remover este local do ponto de interesse?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="flex items-center gap-1 text-red-500 hover:bg-red-50 hover:underline hover:text-red-600">
+                                                            <x-heroicon-o-trash class="w-4 h-4"/>
+                                                            <spam>Remover</spam>
+                                                        </button>
+                                                    </form>
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr>
@@ -112,9 +134,35 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open'));
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        const detailsList = document.querySelectorAll('details');
+
+        detailsList.forEach(details => {
+            const iconContainer = details.querySelector('.details-icon');
+
+            const closedIcon = `<x-heroicon-o-chevron-right class="w-5 h-5"/>`;
+            const openIcon   = `<x-heroicon-o-chevron-down class="w-5 h-5"/>`;
+
+            const updateIcon = () => {
+                iconContainer.innerHTML = details.open ? openIcon : closedIcon;
+            };
+
+            updateIcon();
+
+            details.addEventListener('toggle', () => {
+                if (details.open) {
+                    detailsList.forEach(d => {
+                        if (d !== details && d.open) {
+                            d.open = false;
+                            const otherIcon = d.querySelector('.details-icon');
+                            if (otherIcon) otherIcon.innerHTML = closedIcon;
+                        }
+                    });
+                }
+                updateIcon();
+            });
+        });
+    });
 </script>
 @endpush
 

@@ -80,8 +80,7 @@
             <div id="iconsMap"
                 class="w-10 h-auto absolute z-[1001] top-12 right-2.5 flex flex-col items-center justify-center bg-white shadow-md">
                 <a id="btn-locPais"><x-heroicon-o-map class="text-gray-600 hover:text-black w-6 h-10 cursor-pointer" /></a>
-                <a id="btn-localizacao"><x-heroicon-o-map-pin
-                        class="text-gray-600 hover:text-black w-6 h-10 cursor-pointer" /></a>
+                <a id="btn-localizacao"><x-heroicon-o-map-pin class="text-gray-600 hover:text-black w-6 h-10 cursor-pointer" /></a>
             </div>
 
             <div class="h-10 w-6 absolute z-[1001] text-gray-700 top-[20px] left-4">
@@ -90,8 +89,7 @@
             </div>
 
             <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-4">
-                <a id="pontos_interesse"><x-heroicon-o-bookmark
-                        class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a>
+                <a id="pontos_interesse"><x-heroicon-o-map-pin class="text-gray-600 hover:text-black w-6 h-6 cursor-pointer" /></a>
             </div>
 
             <div id="pontos_interesseInfo"

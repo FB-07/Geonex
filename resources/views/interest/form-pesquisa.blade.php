@@ -25,11 +25,25 @@
             @csrf
 
             <div class="box flex-1 flex flex-col overflow-y-auto gap-4 custom-scrollbar overflow-x-visible">
+                <x-input
+                    name="nome"
+                    label="{{ __('levels.name') }}"
+                    type="text"
+                    value="{{ old('nome') }}"
+                    required
+                />
 
                 <x-input
                     name="pesquisa"
                     label="Pesquisa"
                     type="text"
+                    required
+                />
+
+                <x-input
+                    name="color"
+                    label="{{ __('levels.colour') }}"
+                    type="color"
                     required
                 />
 
