@@ -288,12 +288,16 @@ class PlaceSearchController extends Controller
                 'car_dealer','car_rental','car_repair','car_wash','electric_vehicle_charging_station',
                 'gas_station','parking','rest_stop'
             ],
-            'business' => ['corporate_office','farm','ranch'],
+            'business' => [
+                'corporate_office','farm','ranch'
+            ],
             'culture' => [
                 'art_gallery','art_studio','auditorium','cultural_landmark','historical_place',
                 'monument','museum','performing_arts_theater'
             ],
-            'education' => ['library','preschool','primary_school','school','secondary_school','university'],
+            'education' => [
+                'library','preschool','primary_school','school','secondary_school','university'
+            ],
             'entertainment' => [
                 'adventure_sports_center','amphitheatre','amusement_center','amusement_park','aquarium',
                 'banquet_hall','barbecue_area','botanical_garden','bowling_alley','casino','community_center',
@@ -301,7 +305,9 @@ class PlaceSearchController extends Controller
                 'historical_landmark','marina','movie_rental','movie_theater','national_park','night_club',
                 'park','planetarium','plaza','state_park','tourist_attraction','visitor_center','water_park','zoo'
             ],
-            'finance' => ['accounting','atm','bank'],
+            'finance' => [
+                'accounting','atm','bank'
+            ],
             'fooddrink' => [
                 'bakery','bar','barbecue_restaurant','brazilian_restaurant','breakfast_restaurant','cafe',
                 'chinese_restaurant','coffee_shop','fast_food_restaurant','french_restaurant','hamburger_restaurant',
@@ -319,7 +325,9 @@ class PlaceSearchController extends Controller
             'health' => [
                 'dental_clinic','dentist','doctor','drugstore','hospital','pharmacy','spa','wellness_center','yoga_studio'
             ],
-            'housing' => ['apartment_building','apartment_complex','condominium_complex','housing_complex'],
+            'housing' => [
+                'apartment_building','apartment_complex','condominium_complex','housing_complex'
+            ],
             'lodging' => [
                 'bed_and_breakfast','campground','camping_cabin','cottage','extended_stay_hotel','guest_house','hostel',
                 'hotel','inn','lodging','motel','resort_hotel','rv_park'

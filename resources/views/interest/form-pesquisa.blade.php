@@ -25,6 +25,7 @@
             @csrf
 
             <div class="box flex-1 flex flex-col overflow-y-auto gap-4 custom-scrollbar overflow-x-visible">
+                
                 <x-input
                     name="nome"
                     label="{{ __('levels.name') }}"
@@ -45,7 +46,32 @@
                     label="{{ __('levels.colour') }}"
                     type="color"
                     required
+                    value="#10776f"
                 />
+
+                <div x-data="{ selectedIcon: '{{ old('icon', 'flame') }}' }" class="space-y-4">
+
+                    <label class="block font-medium">Escolher Ícone</label>
+
+                    <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-w-2xl overflow-y-auto border p-2 rounded">
+                        @foreach($icons as $icon)
+                            <button
+                                type="button"
+                                class="p-2 border rounded flex items-center justify-center transition"
+                                :class="selectedIcon === '{{ $icon }}'
+                                    ? 'bg-proximo-500 border-proximo-600 text-white'
+                                    : 'bg-proximo-700 hover:bg-proximo-900 text-white'"
+                                @click="selectedIcon = '{{ $icon }}'"
+                                title="{{ $icon }}"
+                            >
+                                <x-dynamic-component :component="'ionicon-' . $icon" class="w-6 h-6"/>
+                            </button>
+                        @endforeach
+                    </div>
+
+                    <input type="hidden" name="icon" x-model="selectedIcon" />
+
+                </div>
 
                 <x-select label="Distrito" name="distrito" :options="[]" />
                 <x-select label="Município" name="municipio" :options="[]" />

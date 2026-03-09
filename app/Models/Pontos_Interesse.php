@@ -16,6 +16,7 @@ class Pontos_Interesse extends Model
         'gfuser_id',
         'nome',
         'color',
+        'icon',
         'distrito_id',
         'municipio_id',
         'freguesia_id',

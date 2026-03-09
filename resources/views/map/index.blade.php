@@ -119,21 +119,14 @@
         </div>
     </div>
 
-    <script>
-        window.APP = {
-            googleMapsKey: @json(config('services.google_maps.key')),
-            apiBase: @json(url('/api')),
-        };
-        /* 
-            Filtros (Zona / Tipo)
-            Markers -> 15 cores diferente
-            Editar / Apagar
-            User
-            Password
-        */
-    </script>
-
     @push('scripts')
         @vite('resources/js/pages/map.js')
+
+        <script>
+            window.APP = {
+                googleMapsKey: @json(config('services.google_maps.key')),
+                apiBase: @json(url('/api')),
+            };
+        </script>
     @endpush
 @endsection

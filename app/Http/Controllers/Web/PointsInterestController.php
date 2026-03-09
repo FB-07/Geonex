@@ -54,7 +54,7 @@ class PointsInterestController extends Controller
             ->join('places as p', 'p.place_id', '=', 'pip.place_id')
             ->join('pontos_interesse as pi', 'pi.id', '=', 'pip.ponto_interesse_id')
             ->where('pi.gfuser_id', $userId)
-            ->select('pi.nome', 'p.*')
+            ->select('pi.nome', 'p.*', 'pi.icon')
             ->get()
             ->groupBy('nome');
 
@@ -66,7 +66,50 @@ class PointsInterestController extends Controller
 
     public function create()
     {
-        return view('interest.form-pesquisa');
+        $icons = [
+            'location',
+            'map',
+            'cart',
+            'fast-food',
+            'storefront',
+            'restaurant',
+            'cafe',
+            'beer',
+            'football',
+            'bed',
+            'car',
+            'bus',
+            'train',
+            'bicycle',
+            'walk',
+            'camera',
+            'barbell',
+            'information-circle',
+            'help-circle',
+            'star',
+            'flag',
+            'globe',
+            'trail-sign',
+            'ticket',
+            'phone-portrait',
+            'pricetag',
+            'hammer',
+            'boat',
+            'shield',
+            'paw',
+            'heart',
+            'skull',
+            'albums',
+            'american-football',
+            'rocket',
+            'attach',
+            'book',
+            'brush',
+            'calendar',
+            'call',
+        ];
+
+        return view('interest.form-pesquisa', compact('icons'));
     }
 
     public function store(Request $request)
@@ -78,6 +121,7 @@ class PointsInterestController extends Controller
             'distrito'  => 'nullable|string|max:120',
             'municipio' => 'nullable|string|max:120',
             'freguesia' => 'nullable|string|max:160',
+            'icon'      => 'required|string|max:255', 
         ]);
 
         $user = auth()->user();
@@ -135,7 +179,6 @@ class PointsInterestController extends Controller
         DB::connection('mysql2')->beginTransaction();
 
         try {
-
             $savedCount = 0;
 
             $poi = Pontos_Interesse::updateOrCreate(
@@ -145,6 +188,7 @@ class PointsInterestController extends Controller
                 ],
                 [
                     'color'        => $data['color'],
+                    'icon'         => $data['icon'], 
                     'distrito_id'  => $distritoId,
                     'municipio_id' => $municipioId,
                     'freguesia_id' => $freguesiaId,
@@ -152,7 +196,6 @@ class PointsInterestController extends Controller
             );
 
             foreach ($places as $p) {
-
                 if (!isset($p['formattedAddress'])) continue;
 
                 $formatted = $p['formattedAddress'];
@@ -186,7 +229,6 @@ class PointsInterestController extends Controller
                 );
 
                 if ($place && $place->place_id) {
-
                     DB::connection('mysql2')
                         ->table('ponto_interesse_place')
                         ->updateOrInsert([
@@ -216,7 +258,6 @@ class PointsInterestController extends Controller
 
             DB::connection('mysql2')->commit();
         } catch (\Throwable $e) {
-
             DB::connection('mysql2')->rollBack();
 
             return redirect()->route('interest.create')
@@ -234,6 +275,49 @@ class PointsInterestController extends Controller
     {
         $userId = (int) auth()->user()->gfuser_id;
 
+        $icons = [
+            'location',
+            'map',
+            'cart',
+            'fast-food',
+            'storefront',
+            'restaurant',
+            'cafe',
+            'beer',
+            'football',
+            'bed',
+            'car',
+            'bus',
+            'train',
+            'bicycle',
+            'walk',
+            'camera',
+            'barbell',
+            'information-circle',
+            'help-circle',
+            'star',
+            'flag',
+            'globe',
+            'trail-sign',
+            'ticket',
+            'phone-portrait',
+            'pricetag',
+            'hammer',
+            'boat',
+            'shield',
+            'paw',
+            'heart',
+            'skull',
+            'albums',
+            'american-football',
+            'rocket',
+            'attach',
+            'book',
+            'brush',
+            'calendar',
+            'call',
+        ];
+
         $poi = Pontos_Interesse::where('gfuser_id', $userId)
             ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
             ->first();
@@ -243,7 +327,7 @@ class PointsInterestController extends Controller
                 ->withErrors(['nome' => 'POI não encontrado.']);
         }
 
-        return view('interest.edit', ['poi' => $poi]);
+        return view('interest.edit', ['poi' => $poi, 'icons' => $icons]);
     }
 
     public function update(Request $request, $nome)
@@ -251,6 +335,7 @@ class PointsInterestController extends Controller
         $request->validate([
             'nome' => 'required|string|max:255',
             'color' => 'nullable|string|size:7',
+            'icon' => 'required|string|max:255',
         ]);
 
         $userId = (int) auth()->user()->gfuser_id;
@@ -267,6 +352,7 @@ class PointsInterestController extends Controller
         $poi->update([
             'nome' => $request->input('nome'),
             'color' => $request->input('color'),
+            'icon' => $request->input('icon'),
         ]);
 
         return redirect()->route('interest.index')
@@ -355,7 +441,8 @@ class PointsInterestController extends Controller
                 'p.lat',
                 'p.lng',
                 'p.types',
-                'pi.color' // <<< aqui adicionamos a cor do POI
+                'pi.color',
+                'pi.icon'
             );
 
         if (!empty($data['distrito']))  $q->where('pi.distrito_id', $data['distrito']);
