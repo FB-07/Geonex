@@ -107,6 +107,16 @@ class PointsInterestController extends Controller
             'brush',
             'calendar',
             'call',
+            'build',
+            'bug',
+            'bowling-ball',
+            'eye',
+            'man',
+            'woman',
+            'leaf',
+            'musical-notes',
+            'pin',
+            'ribbon',
         ];
 
         return view('interest.form-pesquisa', compact('icons'));
@@ -316,6 +326,16 @@ class PointsInterestController extends Controller
             'brush',
             'calendar',
             'call',
+            'build',
+            'bug',
+            'bowling-ball',
+            'eye',
+            'man',
+            'woman',
+            'leaf',
+            'musical-notes',
+            'pin',
+            'ribbon',
         ];
 
         $poi = Pontos_Interesse::where('gfuser_id', $userId)
@@ -354,6 +374,77 @@ class PointsInterestController extends Controller
             'color' => $request->input('color'),
             'icon' => $request->input('icon'),
         ]);
+
+        return redirect()->route('interest.index')
+            ->with('success', 'POI atualizado com sucesso.');
+    }
+
+    public function addPlacesForm($nome)
+    {
+        $userId = auth()->user()->gfuser_id;
+
+        $poi = Pontos_Interesse::where('gfuser_id', $userId)
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
+            ->firstOrFail();
+
+        return view('interest.add-places', compact('poi'));
+    }
+
+    public function addPlaces(Request $request, $nome)
+    {
+        $data = $request->validate([
+            'pesquisa' => 'required|string|max:255',
+        ]);
+
+        $userId = auth()->user()->gfuser_id;
+
+        $poi = Pontos_Interesse::where('gfuser_id', $userId)
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
+            ->firstOrFail();
+
+        $apiKey = config('services.google_maps.key');
+
+        $response = Http::timeout(20)->withHeaders([
+            'Content-Type' => 'application/json',
+            'X-Goog-Api-Key' => $apiKey,
+            'X-Goog-FieldMask' =>
+                'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
+        ])->post('https://places.googleapis.com/v1/places:searchText', [
+            'textQuery' => $data['pesquisa'],
+            'regionCode' => 'PT'
+        ]);
+
+        if (!$response->successful()) {
+            return back()->withErrors([
+                'pesquisa' => 'Erro na API Google.'
+            ]);
+        }
+
+        $places = $response->json('places') ?? [];
+
+        foreach ($places as $p) {
+
+            $placeId = $p['id'] ?? null;
+            if (!$placeId) continue;
+
+            $place = Place::updateOrCreate(
+                ['place_id' => $placeId],
+                [
+                    'name' => $p['displayName']['text'] ?? '',
+                    'formatted_address' => $p['formattedAddress'] ?? '',
+                    'lat' => $p['location']['latitude'] ?? null,
+                    'lng' => $p['location']['longitude'] ?? null,
+                    'types' => $p['types'] ?? null,
+                ]
+            );
+
+            DB::connection('mysql2')
+                ->table('ponto_interesse_place')
+                ->updateOrInsert([
+                    'ponto_interesse_id' => $poi->id,
+                    'place_id' => $place->place_id,
+                ]);
+        }
 
         return redirect()->route('interest.index')
             ->with('success', 'POI atualizado com sucesso.');

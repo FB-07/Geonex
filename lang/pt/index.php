@@ -12,4 +12,5 @@ return [
     'doctor' => 'Médico',
     'other' => 'Outro',
     'step' => 'Passo',
+    'add' => 'Adicionar',
 ];

@@ -19,7 +19,7 @@
     @endif
 
     <div x-data class="h-full">
-        <form action="{{ route('interest.update', $poi->nome) }}" method="POST" class="flex flex-col h-[calc(100vh-150px)]">
+        <form action="{{ route('interest.update', $poi->nome) }}" method="POST" class="flex flex-col h-[calc(100vh-130px)]">
             @csrf
             @method('PUT')
             <div class="box flex-1 flex flex-col overflow-y-auto custom-scrollbar overflow-x-visible">
@@ -48,7 +48,7 @@
                                 type="button"
                                 class="p-2 border rounded flex items-center justify-center transition"
                                 :class="selectedIcon === '{{ $icon }}'
-                                    ? 'bg-proximo-200 border-proximo-500 text-white'
+                                    ? 'bg-proximo-500 border-proximo-600 text-white'
                                     : 'bg-proximo-700 hover:bg-proximo-900 text-white'"
                                 @click="selectedIcon = '{{ $icon }}'"
                                 title="{{ $icon }}"

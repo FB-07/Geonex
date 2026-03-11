@@ -51,6 +51,7 @@
                                         <x-tecnical-tactions 
                                             :editData="route('interest.edit', $key)" 
                                             :deleteData="route('interest.destroy', $key)" 
+                                            :poi="$g"
                                         />
                                     </span>
                                 </div>

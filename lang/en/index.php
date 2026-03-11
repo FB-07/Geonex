@@ -8,4 +8,5 @@ return [
     'save' => 'Save',
     'create' => 'Create',
     'step' => 'Step',
+    'add' => 'Add',
 ];
