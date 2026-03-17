@@ -9,6 +9,7 @@ use App\Models\SearchHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class PointsInterestController extends Controller
 {
@@ -131,7 +132,8 @@ class PointsInterestController extends Controller
             'distrito'  => 'nullable|string|max:120',
             'municipio' => 'nullable|string|max:120',
             'freguesia' => 'nullable|string|max:160',
-            'icon'      => 'required|string|max:255', 
+            'icon'      => 'nullable|string|max:255',
+            'image'     => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         $user = auth()->user();
@@ -155,6 +157,14 @@ class PointsInterestController extends Controller
         $freguesiaId = !empty($data['freguesia'])
             ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
             : null;
+
+        $imagePath = null;
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $imagePath = $file->storeAs('pontos_interesse', $filename, 'public');
+        }
 
         $apiKey = config('services.google_maps.key');
 
@@ -189,6 +199,7 @@ class PointsInterestController extends Controller
         DB::connection('mysql2')->beginTransaction();
 
         try {
+
             $savedCount = 0;
 
             $poi = Pontos_Interesse::updateOrCreate(
@@ -198,7 +209,8 @@ class PointsInterestController extends Controller
                 ],
                 [
                     'color'        => $data['color'],
-                    'icon'         => $data['icon'], 
+                    'icon'         => $data['icon'],
+                    'image'        => $imagePath,
                     'distrito_id'  => $distritoId,
                     'municipio_id' => $municipioId,
                     'freguesia_id' => $freguesiaId,
@@ -355,7 +367,8 @@ class PointsInterestController extends Controller
         $request->validate([
             'nome' => 'required|string|max:255',
             'color' => 'nullable|string|size:7',
-            'icon' => 'required|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048'
         ]);
 
         $userId = (int) auth()->user()->gfuser_id;
@@ -369,10 +382,20 @@ class PointsInterestController extends Controller
                 ->withErrors(['nome' => 'POI não encontrado.']);
         }
 
+        if ($request->hasFile('image')) {
+            if ($poi->image) {
+                Storage::disk('public')->delete($poi->image);
+            }
+
+            $path = $request->file('image')->store('poi', 'public');
+            $poi->image = $path;
+        }
+
         $poi->update([
             'nome' => $request->input('nome'),
             'color' => $request->input('color'),
             'icon' => $request->input('icon'),
+            'image' => $poi->image
         ]);
 
         return redirect()->route('interest.index')
@@ -533,14 +556,20 @@ class PointsInterestController extends Controller
                 'p.lng',
                 'p.types',
                 'pi.color',
-                'pi.icon'
+                'pi.icon',
+                'pi.image'
             );
 
         if (!empty($data['distrito']))  $q->where('pi.distrito_id', $data['distrito']);
         if (!empty($data['municipio'])) $q->where('pi.municipio_id', $data['municipio']);
         if (!empty($data['freguesia'])) $q->where('pi.freguesia_id', $data['freguesia']);
 
-        $places = $q->get();
+        $places = $q->get()->map(function ($p) {
+            if ($p->image) {
+                $p->image = asset('storage/' . $p->image);
+            }
+            return $p;
+        });
 
         return response()->json(['places' => $places], 200);
     }

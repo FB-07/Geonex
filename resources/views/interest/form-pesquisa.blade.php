@@ -21,14 +21,14 @@
     <div x-data class="h-full">
         <x-heroicon-o-information-circle class="hidden" />
 
-        <form action="{{ route('interest.store') }}" method="POST" id="zone-form" class="flex flex-col h-[calc(100vh-150px)]">
+        <form action="{{ route('interest.store') }}" method="POST" id="zone-form" enctype="multipart/form-data" class="flex flex-col h-[calc(100vh-150px)]">
             @csrf
 
             <div class="box flex-1 flex flex-col overflow-y-auto gap-4 custom-scrollbar overflow-x-visible">
                 
                 <x-input
                     name="nome"
-                    label="{{ __('levels.name') }}"
+                    label="{{ __('levels.name') }} do Ponto de interesse"
                     type="text"
                     value="{{ old('nome') }}"
                     required
@@ -49,8 +49,53 @@
                     value="#10776f"
                 />
 
-                <div x-data="{ selectedIcon: '{{ old('icon', 'flame') }}' }" class="space-y-4">
+                <div x-data="{ 
+                    preview: null, 
+                    selectedIcon: '{{ old('icon', 'location') }}',
+                    setImage(event) {
+                        this.preview = URL.createObjectURL(event.target.files[0]);
+                        if (this.preview) this.selectedIcon = null; 
+                    },
+                    removeImage() {
+                        this.preview = null;
+                        this.$refs.fileInput.value = null;
+                    },
+                    selectIcon(icon) {
+                        this.selectedIcon = icon;
+                        if (icon) this.removeImage();
+                    }
+                }" class="flex flex-col gap-4">
 
+                <div class="flex flex-col gap-2">
+                    <label class="block font-medium">Imagem</label>
+
+                    <input 
+                        type="file" 
+                        name="image" 
+                        accept="image/*"
+                        @change="setImage($event)"
+                        x-ref="fileInput"
+                        class="block w-full text-sm text-gray-400
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-proximo-700 file:text-white
+                            hover:file:bg-proximo-900"
+                    >
+
+                    <template x-if="preview">
+                        <div class="flex flex-col items-start gap-2 mt-2">
+                            <img :src="preview" class="w-32 h-32 object-cover rounded border" alt="Preview da imagem">
+                            <button type="button"
+                                    @click="removeImage()"
+                                    class="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+                                Remover imagem
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="space-y-4">
                     <label class="block font-medium">Escolher Ícone</label>
 
                     <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-w-2xl overflow-y-auto border p-2 rounded">
@@ -61,7 +106,7 @@
                                 :class="selectedIcon === '{{ $icon }}'
                                     ? 'bg-proximo-500 border-proximo-600 text-white'
                                     : 'bg-proximo-700 hover:bg-proximo-900 text-white'"
-                                @click="selectedIcon = '{{ $icon }}'"
+                                @click="selectIcon('{{ $icon }}')"
                                 title="{{ $icon }}"
                             >
                                 <x-dynamic-component :component="'ionicon-' . $icon" class="w-6 h-6"/>
@@ -70,8 +115,8 @@
                     </div>
 
                     <input type="hidden" name="icon" x-model="selectedIcon" />
-
                 </div>
+            </div>
 
                 <x-select label="Distrito" name="distrito" :options="[]" />
                 <x-select label="Município" name="municipio" :options="[]" />

@@ -630,24 +630,6 @@ function initFiltros() {
   });
 }
 
-function makePOIIcon(iconName, color = "#2563eb") {
-  const size = 24;
-
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
-    <circle cx="256" cy="256" r="220" fill="${color}" stroke="white" stroke-width="30"/>
-    <text x="256" y="300" text-anchor="middle" font-size="220" fill="white">
-      ?
-    </text>
-  </svg>`;
-
-  return {
-    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-    scaledSize: new google.maps.Size(28, 28),
-    anchor: new google.maps.Point(16, 16),
-  };
-}
-
 async function loadIonicon(iconName) {
   try {
     const res = await fetch(`https://unpkg.com/ionicons/dist/svg/${iconName}.svg`);
@@ -676,12 +658,12 @@ async function makePOIMarkerIcon(iconName, color) {
   }
 
   const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-  <circle cx="20" cy="20" r="16" fill="${color || "#2563eb"}" stroke="white" stroke-width="3"/>
-  <g transform="translate(11,11) scale(0.035)" fill="white">
-    ${iconInner}
-  </g>
-</svg>`;
+  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="16" fill="${color || "#2563eb"}" stroke="white" stroke-width="3"/>
+    <g transform="translate(11,11) scale(0.035)" fill="white">
+      ${iconInner}
+    </g>
+  </svg>`;
 
   return {
     url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
@@ -779,6 +761,53 @@ async function bootstrapPOI() {
   renderPOI(names);
 }
 
+async function createMarkerWithImage(url, color) {
+    return new Promise((resolve, reject) => {
+        const scale = 4;
+        
+        const size = 40;
+        const radius = 16;
+        const border = 3;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = size * scale;
+        canvas.height = size * scale;
+        const ctx = canvas.getContext("2d");
+
+        const center = canvas.width / 2;
+
+        ctx.fillStyle = color || "#2563eb";
+        ctx.beginPath();
+        ctx.arc(center, center, radius * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = border * scale;
+        ctx.stroke();
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            const imgSize = 24 * scale;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(center, center, imgSize / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(img, center - imgSize / 2, center - imgSize / 2, imgSize, imgSize);
+            ctx.restore();
+
+            resolve({
+                url: canvas.toDataURL(),
+                scaledSize: new google.maps.Size(size, size),
+                anchor: new google.maps.Point(size / 2, size / 2),
+            });
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
 async function togglePOI(name, checked) {
   if (!map) return;
   name = (name || "").trim();
@@ -807,16 +836,22 @@ async function togglePOI(name, checked) {
 
       const pos = { lat, lng };
 
-      const icon = await makePOIMarkerIcon(
-        p.icon || "location",
-        p.color || "#2563eb"
-      );
+      let iconConfig;
+
+      if (p.image) {
+          iconConfig = await createMarkerWithImage(p.image, p.color);
+      } else {
+          iconConfig = await makePOIMarkerIcon(
+              p.icon || "location",
+              p.color || "#2563eb"
+          );
+      }
 
       const marker = new google.maps.Marker({
         map,
         position: pos,
         title: p.name || name,
-        icon: icon,
+        icon: iconConfig,
       });
 
       markers.push(marker);

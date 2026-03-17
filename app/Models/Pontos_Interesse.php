@@ -17,6 +17,7 @@ class Pontos_Interesse extends Model
         'nome',
         'color',
         'icon',
+        'image',
         'distrito_id',
         'municipio_id',
         'freguesia_id',
