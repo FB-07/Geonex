@@ -72,13 +72,15 @@ function renderRecents() {
 
   if (!container || !wrapper) return;
 
+  container.innerHTML = "";
+
   if (!recents.length) {
-    wrapper.classList.add("hidden");
-    container.innerHTML = "";
+    const row = document.createElement("div");
+    row.className = "p-2 text-gray-500 text-sm italic";
+    row.textContent = "Não há recentes";
+    container.appendChild(row);
     return;
   }
-
-  container.innerHTML = "";
 
   const iconTemplate = el("noRecent");
 
@@ -172,10 +174,15 @@ function initRecent() {
     e.stopPropagation();
 
     const poiBox = el("pontos_interesseInfo");
-    if (!getRecents().length) return box?.classList.add("hidden");
-
     poiBox?.classList.add("hidden");
-    box?.classList.toggle("hidden");
+
+    const isHidden = box?.classList.contains("hidden");
+    if (isHidden) {
+      box.classList.remove("hidden");
+      renderRecents(); 
+    } else {
+      box.classList.add("hidden"); 
+    }
   });
 
   document.addEventListener("click", () => box?.classList.add("hidden"));
@@ -716,19 +723,29 @@ async function fetchPOIPlacesByName(name) {
   }
 }
 
-function renderPOI(names) {
+function renderPOI(names, loading = false) {
   const container = el("pontos_interesseList");
   const wrapper = el("pontos_interesseInfo");
 
   if (!container || !wrapper) return;
 
-  if (!names.length) {
-    wrapper.classList.add("hidden");
-    container.innerHTML = "";
+  container.innerHTML = ""; 
+
+  if (loading) {
+    const row = document.createElement("div");
+    row.className = "p-2 text-gray-500 text-sm italic";
+    row.textContent = "A carregar pontos de interesse...";
+    container.appendChild(row);
     return;
   }
 
-  container.innerHTML = "";
+  if (!names.length) {
+    const row = document.createElement("div");
+    row.className = "p-2 text-gray-500 text-sm italic";
+    row.textContent = "Não há pontos de interesse";
+    container.appendChild(row);
+    return;
+  }
 
   names.forEach((name) => {
     const row = document.createElement("div");
@@ -757,6 +774,8 @@ function renderPOI(names) {
 }
 
 async function bootstrapPOI() {
+  renderPOI([], true);
+
   const names = await fetchPOINames();
   renderPOI(names);
 }
