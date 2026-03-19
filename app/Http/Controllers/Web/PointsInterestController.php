@@ -146,7 +146,7 @@ class PointsInterestController extends Controller
         $userId = (int) $user->gfuser_id;
         $conn   = DB::connection('mysql2');
 
-        $distritoId  = !empty($data['distrito'])
+        $distritoId = !empty($data['distrito'])
             ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
             : null;
 
@@ -173,51 +173,56 @@ class PointsInterestController extends Controller
                 ->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
         }
 
-        $response = Http::timeout(20)->withHeaders([
-            'Content-Type'     => 'application/json',
-            'X-Goog-Api-Key'   => $apiKey,
-            'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-        ])->post('https://places.googleapis.com/v1/places:searchText', [
-            'textQuery'  => $data['pesquisa'],
-            'regionCode' => 'PT'
-        ]);
-
-        if (!$response->successful()) {
-            return redirect()->route('interest.create')
-                ->withInput()
-                ->withErrors(['pesquisa' => 'Erro na API Google.']);
-        }
-
-        $places = $response->json('places') ?? [];
-
-        if (empty($places)) {
-            return redirect()->route('interest.create')
-                ->withInput()
-                ->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
-        }
+        $poi = Pontos_Interesse::updateOrCreate(
+            [
+                'gfuser_id' => $userId,
+                'nome'      => $data['nome'],
+            ],
+            [
+                'color'        => $data['color'],
+                'icon'         => $data['icon'],
+                'image'        => $imagePath,
+                'distrito_id'  => $distritoId,
+                'municipio_id' => $municipioId,
+                'freguesia_id' => $freguesiaId,
+            ]
+        );
 
         DB::connection('mysql2')->beginTransaction();
 
         try {
 
+            $distritos = $conn->table('distritos')->get();
+
+            $allPlaces = [];
+
+            foreach ($distritos as $distrito) {
+
+                $response = Http::timeout(20)->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'X-Goog-Api-Key' => $apiKey,
+                    'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
+                ])->post('https://places.googleapis.com/v1/places:searchText', [
+                    'textQuery' => $data['pesquisa'] . ' ' . $distrito->nome,
+                    'regionCode' => 'PT'
+                ]);
+
+                if (!$response->successful()) continue;
+
+                $places = $response->json('places') ?? [];
+
+                foreach ($places as $p) {
+                    if (!isset($p['id'])) continue;
+                    $allPlaces[$p['id']] = $p;
+                }
+
+                usleep(200000);
+            }
+
             $savedCount = 0;
 
-            $poi = Pontos_Interesse::updateOrCreate(
-                [
-                    'gfuser_id' => $userId,
-                    'nome'      => $data['nome'],
-                ],
-                [
-                    'color'        => $data['color'],
-                    'icon'         => $data['icon'],
-                    'image'        => $imagePath,
-                    'distrito_id'  => $distritoId,
-                    'municipio_id' => $municipioId,
-                    'freguesia_id' => $freguesiaId,
-                ]
-            );
+            foreach ($allPlaces as $p) {
 
-            foreach ($places as $p) {
                 if (!isset($p['formattedAddress'])) continue;
 
                 $formatted = $p['formattedAddress'];
@@ -229,11 +234,12 @@ class PointsInterestController extends Controller
 
                 if (!$hier) continue;
 
-                if ($distritoId !== null && $hier->distrito_id != $distritoId) continue;
-                if ($municipioId !== null && $hier->municipio_id != $municipioId) continue;
-                if ($freguesiaId !== null && $hier->freguesia_id != $freguesiaId) continue;
+                if ($distritoId && $hier->distrito_id != $distritoId) continue;
+                if ($municipioId && $hier->municipio_id != $municipioId) continue;
+                if ($freguesiaId && $hier->freguesia_id != $freguesiaId) continue;
 
-                $placeId = $p['id'] ?? null;
+                $placeId = $p['id'];
+
                 if (!$placeId) continue;
 
                 $place = Place::updateOrCreate(
@@ -250,22 +256,19 @@ class PointsInterestController extends Controller
                     ]
                 );
 
-                if ($place && $place->place_id) {
-                    DB::connection('mysql2')
-                        ->table('ponto_interesse_place')
-                        ->updateOrInsert([
-                            'ponto_interesse_id' => $poi->id,
-                            'place_id'           => $place->place_id,
-                        ]);
-
-                    SearchHistory::create([
-                        'gfuser_id' => $userId,
-                        'place_id'  => $place->place_id,
-                        'query'     => $data['pesquisa'],
+                DB::connection('mysql2')->table('ponto_interesse_place')
+                    ->updateOrInsert([
+                        'ponto_interesse_id' => $poi->id,
+                        'place_id'           => $place->place_id,
                     ]);
 
-                    $savedCount++;
-                }
+                SearchHistory::create([
+                    'gfuser_id' => $userId,
+                    'place_id'  => $place->place_id,
+                    'query'     => $data['pesquisa'],
+                ]);
+
+                $savedCount++;
             }
 
             if ($savedCount === 0) {
@@ -273,20 +276,17 @@ class PointsInterestController extends Controller
 
                 return redirect()->route('interest.create')
                     ->withInput()
-                    ->withErrors([
-                        'pesquisa' => 'Nenhum resultado corresponde aos filtros selecionados.'
-                    ]);
+                    ->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
             }
 
             DB::connection('mysql2')->commit();
+
         } catch (\Throwable $e) {
             DB::connection('mysql2')->rollBack();
 
             return redirect()->route('interest.create')
                 ->withInput()
-                ->withErrors([
-                    'pesquisa' => 'Erro interno ao guardar: ' . $e->getMessage()
-                ]);
+                ->withErrors(['pesquisa' => 'Erro interno: ' . $e->getMessage()]);
         }
 
         return redirect()->route('interest.index')
@@ -425,27 +425,38 @@ class PointsInterestController extends Controller
             ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
             ->firstOrFail();
 
+        $conn = DB::connection('mysql2');
+
         $apiKey = config('services.google_maps.key');
 
-        $response = Http::timeout(20)->withHeaders([
-            'Content-Type' => 'application/json',
-            'X-Goog-Api-Key' => $apiKey,
-            'X-Goog-FieldMask' =>
-                'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-        ])->post('https://places.googleapis.com/v1/places:searchText', [
-            'textQuery' => $data['pesquisa'],
-            'regionCode' => 'PT'
-        ]);
+        $distritos = $conn->table('distritos')->get();
 
-        if (!$response->successful()) {
-            return back()->withErrors([
-                'pesquisa' => 'Erro na API Google.'
+        $allPlaces = [];
+
+        foreach ($distritos as $distrito) {
+
+            $response = Http::timeout(20)->withHeaders([
+                'Content-Type' => 'application/json',
+                'X-Goog-Api-Key' => $apiKey,
+                'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
+            ])->post('https://places.googleapis.com/v1/places:searchText', [
+                'textQuery' => $data['pesquisa'] . ' ' . $distrito->nome,
+                'regionCode' => 'PT'
             ]);
+
+            if (!$response->successful()) continue;
+
+            $places = $response->json('places') ?? [];
+
+            foreach ($places as $p) {
+                if (!isset($p['id'])) continue;
+                $allPlaces[$p['id']] = $p;
+            }
+
+            usleep(200000);
         }
 
-        $places = $response->json('places') ?? [];
-
-        foreach ($places as $p) {
+        foreach ($allPlaces as $p) {
 
             $placeId = $p['id'] ?? null;
             if (!$placeId) continue;
@@ -461,8 +472,7 @@ class PointsInterestController extends Controller
                 ]
             );
 
-            DB::connection('mysql2')
-                ->table('ponto_interesse_place')
+            $conn->table('ponto_interesse_place')
                 ->updateOrInsert([
                     'ponto_interesse_id' => $poi->id,
                     'place_id' => $place->place_id,
