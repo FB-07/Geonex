@@ -50,7 +50,7 @@ Route::middleware(['web', Language::class])->group(function () {
 
         Route::get('/pontos-interesse/names', [PointsInterestController::class, 'names']);
         Route::post('/pontos-interesse/places', [PointsInterestController::class, 'placesByName']);
-        Route::delete('/interest/{poi}/place/{place}',[PointsInterestController::class, 'detachPlace'])->name('interest.place.detach');
+        Route::delete('/interest/{group}/places', [PointsInterestController::class, 'detachPlace'])->name('interest.place.detach');
 
         Route::get('/interest/{nome}/add-places', [PointsInterestController::class, 'addPlacesForm'])->name('interest.addPlacesForm');
         Route::post('/interest/{nome}/add-places', [PointsInterestController::class, 'addPlaces'])->name('interest.addPlaces');

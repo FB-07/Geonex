@@ -225,6 +225,16 @@ function initMap() {
   map = new google.maps.Map(el("map"), {
     center: PORTUGAL_CENTER,
     zoom: PORTUGAL_ZOOM,
+    minZoom: 2,
+    restriction: {
+      latLngBounds: {
+        north: 85,
+        south: -85,
+        west: -180,
+        east: 180
+      },
+      strictBounds: true 
+    },
     mapTypeControl: false,
     streetViewControl: false,
     fullscreenControl: true,

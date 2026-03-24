@@ -38,6 +38,13 @@
                                             <x-heroicon-o-chevron-right class="w-5 h-5"/>
                                         </span>
                                         <span class="font-medium text-gray-900">{{ $g->nome }}</span>
+                                        <span>
+                                            @if ($g->image)
+                                                <img class="w-7 h-7 ml-1.5 rounded-full" src="{{ Storage::url($g->image) }}" alt="">
+                                            @elseif ($g->icon)
+                                                <x-dynamic-component :component="'ionicon-' . $g->icon" class="ml-1.5 text-gray-500 w-6 h-6"/>
+                                            @endif
+                                        </span>
                                     </div>
                                     <span class="text-xs text-gray-500 mt-0.5">
                                         {{ $g->distrito_nome ?? '-' }} /
@@ -57,66 +64,82 @@
                                 </div>
                             </summary>
 
-                            <div class="box mt-2 px-3 pb-4">
-                                <table class="min-w-full divide-y divide-gray-300 table-fixed">
-                                    <thead>
-                                        <tr>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Local</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Morada</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lat</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lng</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Tipos</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"></th>
+                            <form method="POST" action="{{ route('interest.place.detach', $g->id) }}" onsubmit="return confirm('Remover locais selecionados?')">
+                                @csrf
+                                @method('DELETE')
 
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200 text-gray-500">
-                                        @forelse ($places as $p)
+                                <div class="box mt-2 px-3 pb-4">
+                                    <table class="min-w-full divide-y divide-gray-300 table-fixed">
+                                        <thead>
                                             <tr>
-                                                <td class="px-3 py-3.5 text-sm">{{ $p->name }}</td>
-                                                <td class="px-3 py-3.5 text-sm">{{ $p->formatted_address ?? '-' }}</td>
-                                                <td class="px-3 py-3.5 text-sm">{{ $p->lat ?? '-' }}</td>
-                                                <td class="px-3 py-3.5 text-sm">{{ $p->lng ?? '-' }}</td>
-                                                <td class="px-3 py-3.5 text-sm">
-                                                    @php
-                                                        $types = $p->types;
-                                                        if (is_string($types)) {
-                                                            $decoded = json_decode($types, true);
-                                                            $types = json_last_error() === JSON_ERROR_NONE ? $decoded : [$types];
-                                                        }
-                                                        $types = is_array($types) ? $types : [];
-                                                    @endphp
-                                                    @if (count($types))
-                                                        <div class="flex flex-wrap gap-1">
-                                                            @foreach (array_slice($types, 0, 5) as $t)
-                                                                <span class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ $t }}</span>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        -
-                                                    @endif
-                                                </td>
-                                                <td class="px-3 py-3.5 text-sm">
-                                                    <form method="POST" 
-                                                        action="{{ route('interest.place.detach', [$g->id, $p->place_id]) }}"
-                                                        onsubmit="return confirm('Remover este local do ponto de interesse?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button class="flex items-center gap-1 text-red-500 hover:bg-red-50 hover:underline hover:text-red-600">
-                                                            <x-heroicon-o-trash class="w-4 h-4"/>
-                                                            <spam>Remover</spam>
-                                                        </button>
-                                                    </form>
-                                                </td>
+                                                <th class="px-3 py-3.5">
+                                                    <input type="checkbox" id="check-all-{{ $g->id }}">
+                                                </th>
+                                                <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Local</th>
+                                                <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Morada</th>
+                                                <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lat</th>
+                                                <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Lng</th>
+                                                <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Tipos</th>
                                             </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="px-3 py-3.5 text-sm text-gray-500">Sem locais associados.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+
+                                        <tbody class="divide-y divide-gray-200 text-gray-500">
+                                            @forelse ($places as $p)
+                                                <tr>
+                                                    <td class="px-3 py-3.5 text-sm">
+                                                        <input type="checkbox" 
+                                                            name="places[]" 
+                                                            value="{{ $p->place_id }}"
+                                                            class="place-checkbox-{{ $g->id }}">
+                                                    </td>
+
+                                                    <td class="px-3 py-3.5 text-sm">{{ $p->name }}</td>
+                                                    <td class="px-3 py-3.5 text-sm">{{ $p->formatted_address ?? '-' }}</td>
+                                                    <td class="px-3 py-3.5 text-sm">{{ $p->lat ?? '-' }}</td>
+                                                    <td class="px-3 py-3.5 text-sm">{{ $p->lng ?? '-' }}</td>
+
+                                                    <td class="px-3 py-3.5 text-sm">
+                                                        @php
+                                                            $types = $p->types;
+                                                            if (is_string($types)) {
+                                                                $decoded = json_decode($types, true);
+                                                                $types = json_last_error() === JSON_ERROR_NONE ? $decoded : [$types];
+                                                            }
+                                                            $types = is_array($types) ? $types : [];
+                                                        @endphp
+
+                                                        @if (count($types))
+                                                            <div class="flex flex-wrap gap-1">
+                                                                @foreach (array_slice($types, 0, 5) as $t)
+                                                                    <span class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                                                                        {{ $t }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="6" class="px-3 py-3.5 text-sm text-gray-500">
+                                                        Sem locais associados.
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+
+                                    <div class="mt-3">
+                                        <button type="submit"
+                                            class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+                                            disabled>
+                                            Remover selecionados
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         </details>
                     </td>
                 </tr>
@@ -135,35 +158,71 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const detailsList = document.querySelectorAll('details');
+document.addEventListener('DOMContentLoaded', () => {
 
-        detailsList.forEach(details => {
-            const iconContainer = details.querySelector('.details-icon');
+    // 🔽 DETAILS (mantém o teu comportamento)
+    const detailsList = document.querySelectorAll('details');
 
-            const closedIcon = `<x-heroicon-o-chevron-right class="w-5 h-5"/>`;
-            const openIcon   = `<x-heroicon-o-chevron-down class="w-5 h-5"/>`;
+    detailsList.forEach(details => {
+        const iconContainer = details.querySelector('.details-icon');
 
-            const updateIcon = () => {
-                iconContainer.innerHTML = details.open ? openIcon : closedIcon;
-            };
+        const closedIcon = `<x-heroicon-o-chevron-right class="w-5 h-5"/>`;
+        const openIcon   = `<x-heroicon-o-chevron-down class="w-5 h-5"/>`;
 
+        const updateIcon = () => {
+            iconContainer.innerHTML = details.open ? openIcon : closedIcon;
+        };
+
+        updateIcon();
+
+        details.addEventListener('toggle', () => {
+            if (details.open) {
+                detailsList.forEach(d => {
+                    if (d !== details && d.open) {
+                        d.open = false;
+                        const otherIcon = d.querySelector('.details-icon');
+                        if (otherIcon) otherIcon.innerHTML = closedIcon;
+                    }
+                });
+            }
             updateIcon();
+        });
+    });
 
-            details.addEventListener('toggle', () => {
-                if (details.open) {
-                    detailsList.forEach(d => {
-                        if (d !== details && d.open) {
-                            d.open = false;
-                            const otherIcon = d.querySelector('.details-icon');
-                            if (otherIcon) otherIcon.innerHTML = closedIcon;
-                        }
-                    });
-                }
-                updateIcon();
+    // ✅ SELECT ALL por grupo
+    document.querySelectorAll('[id^="check-all-"]').forEach(master => {
+        master.addEventListener('change', function () {
+            const groupId = this.id.replace('check-all-', '');
+
+            document.querySelectorAll('.place-checkbox-' + groupId)
+                .forEach(cb => cb.checked = this.checked);
+
+            toggleButton(groupId);
+        });
+    });
+
+    // ✅ Ativar/desativar botão
+    document.querySelectorAll('form').forEach(form => {
+        const checkboxes = form.querySelectorAll('input[name="places[]"]');
+        const button = form.querySelector('button[type="submit"]');
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const checked = form.querySelectorAll('input[name="places[]"]:checked').length;
+                button.disabled = checked === 0;
             });
         });
     });
+
+    function toggleButton(groupId) {
+        const form = document.querySelector(`#check-all-${groupId}`).closest('form');
+        const button = form.querySelector('button[type="submit"]');
+        const checked = form.querySelectorAll('input[name="places[]"]:checked').length;
+
+        button.disabled = checked === 0;
+    }
+
+});
 </script>
 @endpush
 

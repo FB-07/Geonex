@@ -35,6 +35,9 @@
                     required
                 />
 
+                <x-select label="Distrito" name="distrito" :options="[]" />
+                <x-select label="Município" name="municipio" :options="[]" />
+                <x-select label="Freguesia" name="freguesia" :options="[]" />
             </div>
 
             <div class="mt-8 flex items-center justify-end gap-x-4">
@@ -45,4 +48,11 @@
         </form>
 
     </div>
+
+    @push('scripts')
+    <script>
+        window.checkInterestUrl = "{{ route('interest.check') }}";
+    </script>
+    @vite('resources/js/pages/POI_form.js')
+    @endpush
 @endsection

@@ -33,6 +33,8 @@ class PointsInterestController extends Controller
                 'pontos_interesse.distrito_id',
                 'pontos_interesse.municipio_id',
                 'pontos_interesse.freguesia_id',
+                'pontos_interesse.icon',
+                'pontos_interesse.image',
                 'd.nome as distrito_nome',
                 'm.nome as municipio_nome',
                 'f.nome as freguesia_nome'
@@ -405,28 +407,34 @@ class PointsInterestController extends Controller
     public function addPlacesForm($nome)
     {
         $userId = auth()->user()->gfuser_id;
+        $conn = DB::connection('mysql2');
 
         $poi = Pontos_Interesse::where('gfuser_id', $userId)
             ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
             ->firstOrFail();
 
-        return view('interest.add-places', compact('poi'));
+        $distritos  = $conn->table('distritos')->pluck('nome', 'id');
+        $municipios = $conn->table('municipios')->pluck('nome', 'id');
+        $freguesias = $conn->table('freguesias')->pluck('nome', 'id');
+
+        return view('interest.add-places', compact('poi', 'distritos', 'municipios', 'freguesias'));
     }
 
     public function addPlaces(Request $request, $nome)
     {
         $data = $request->validate([
-            'pesquisa' => 'required|string|max:255',
+            'pesquisa'  => 'required|string|max:255',
+            'distrito'  => 'nullable|integer',
+            'municipio' => 'nullable|integer',
+            'freguesia' => 'nullable|integer',
         ]);
 
         $userId = auth()->user()->gfuser_id;
-
         $poi = Pontos_Interesse::where('gfuser_id', $userId)
             ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
             ->firstOrFail();
 
         $conn = DB::connection('mysql2');
-
         $apiKey = config('services.google_maps.key');
 
         $distritos = $conn->table('distritos')->get();
@@ -461,29 +469,51 @@ class PointsInterestController extends Controller
             $placeId = $p['id'] ?? null;
             if (!$placeId) continue;
 
+            $formatted = $p['formattedAddress'] ?? null;
+            $cpDigits  = $this->extractCpDigits($formatted);
+
+            if (!$cpDigits) continue;
+
+            $hier = $this->cpToHierarchy($conn, $cpDigits);
+
+            if (!$hier) continue;
+
+            if (!empty($data['distrito']) && $hier->distrito_id != $data['distrito']) continue;
+            if (!empty($data['municipio']) && $hier->municipio_id != $data['municipio']) continue;
+            if (!empty($data['freguesia']) && $hier->freguesia_id != $data['freguesia']) continue;
+
             $place = Place::updateOrCreate(
                 ['place_id' => $placeId],
                 [
-                    'name' => $p['displayName']['text'] ?? '',
-                    'formatted_address' => $p['formattedAddress'] ?? '',
-                    'lat' => $p['location']['latitude'] ?? null,
-                    'lng' => $p['location']['longitude'] ?? null,
-                    'types' => $p['types'] ?? null,
+                    'name'              => $p['displayName']['text'] ?? '',
+                    'formatted_address' => $formatted,
+                    'lat'               => $p['location']['latitude'] ?? null,
+                    'lng'               => $p['location']['longitude'] ?? null,
+                    'types'             => $p['types'] ?? null,
+                    'distrito_id'       => $hier->distrito_id,
+                    'municipio_id'      => $hier->municipio_id,
+                    'freguesia_id'      => $hier->freguesia_id,
                 ]
             );
 
-            $conn->table('ponto_interesse_place')
+            DB::connection('mysql2')->table('ponto_interesse_place')
                 ->updateOrInsert([
                     'ponto_interesse_id' => $poi->id,
-                    'place_id' => $place->place_id,
+                    'place_id'           => $place->place_id,
                 ]);
+
+            SearchHistory::create([
+                'gfuser_id' => $userId,
+                'place_id'  => $place->place_id,
+                'query'     => $data['pesquisa'],
+            ]);
         }
 
         return redirect()->route('interest.index')
-            ->with('success', 'POI atualizado com sucesso.');
+            ->with('success', 'Locais adicionados com sucesso.');
     }
 
-    public function detachPlace($poiId, $placeId)
+    public function detachPlace(Request $request, $poiId)
     {
         $userId = auth()->user()->gfuser_id;
 
@@ -491,9 +521,13 @@ class PointsInterestController extends Controller
             ->where('gfuser_id', $userId)
             ->firstOrFail();
 
-        $poi->places()->detach($placeId);
+        $places = $request->input('places', []);
 
-        return redirect()->back()->with('success', 'Local removido com sucesso.');
+        if (!empty($places)) {
+            $poi->places()->detach($places);
+        }
+
+        return redirect()->back()->with('success', 'Locais removidos com sucesso.');
     }
 
     public function destroy($nome)
