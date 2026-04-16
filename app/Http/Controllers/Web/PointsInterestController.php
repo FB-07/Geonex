@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\Controller;
 use App\Models\Pontos_Interesse;
 use App\Models\Place;
 use App\Models\SearchHistory;
+use App\Jobs\ProcessPlaces;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -139,14 +140,13 @@ class PointsInterestController extends Controller
         ]);
 
         $user = auth()->user();
-
         if (!$user || !isset($user->gfuser_id)) {
             return redirect()->route('interest.create')
                 ->withErrors(['nome' => 'Utilizador não autenticado.']);
         }
 
-        $userId = (int) $user->gfuser_id;
-        $conn   = DB::connection('mysql2');
+        $userId = (int)$user->gfuser_id;
+        $conn = DB::connection('mysql2');
 
         $distritoId = !empty($data['distrito'])
             ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
@@ -160,20 +160,9 @@ class PointsInterestController extends Controller
             ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
             : null;
 
-        $imagePath = null;
-
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $imagePath = $file->storeAs('pontos_interesse', $filename, 'public');
-        }
-
-        $apiKey = config('services.google_maps.key');
-
-        if (!$apiKey) {
-            return redirect()->route('interest.create')
-                ->withErrors(['pesquisa' => 'Google Maps key não configurada.']);
-        }
+        $imagePath = $request->hasFile('image')
+            ? $request->file('image')->storeAs('pontos_interesse', time() . '_' . $request->file('image')->getClientOriginalName(), 'public')
+            : null;
 
         $poi = Pontos_Interesse::updateOrCreate(
             [
@@ -190,105 +179,34 @@ class PointsInterestController extends Controller
             ]
         );
 
-        DB::connection('mysql2')->beginTransaction();
+        $existingPlaces = Place::query()
+            ->when($distritoId, fn($q) => $q->where('distrito_id', $distritoId))
+            ->when($municipioId, fn($q) => $q->where('municipio_id', $municipioId))
+            ->when($freguesiaId, fn($q) => $q->where('freguesia_id', $freguesiaId))
+            ->where('name', 'LIKE', '%' . $data['pesquisa'] . '%')
+            ->get();
 
-        try {
-
-            $distritos = $conn->table('distritos')->get();
-
-            $allPlaces = [];
-
-            foreach ($distritos as $distrito) {
-
-                $response = Http::timeout(20)->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'X-Goog-Api-Key' => $apiKey,
-                    'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-                ])->post('https://places.googleapis.com/v1/places:searchText', [
-                    'textQuery' => $data['pesquisa'] . ' ' . $distrito->nome,
-                    'regionCode' => 'PT'
+        if ($existingPlaces->isNotEmpty()) {
+            foreach ($existingPlaces as $place) {
+                DB::connection('mysql2')->table('ponto_interesse_place')->updateOrInsert([
+                    'ponto_interesse_id' => $poi->id,
+                    'place_id' => $place->place_id,
                 ]);
-
-                if (!$response->successful()) continue;
-
-                $places = $response->json('places') ?? [];
-
-                foreach ($places as $p) {
-                    if (!isset($p['id'])) continue;
-                    $allPlaces[$p['id']] = $p;
-                }
-
-                usleep(200000);
-            }
-
-            $savedCount = 0;
-
-            foreach ($allPlaces as $p) {
-
-                if (!isset($p['formattedAddress'])) continue;
-
-                $formatted = $p['formattedAddress'];
-                $cpDigits  = $this->extractCpDigits($formatted);
-
-                if (!$cpDigits) continue;
-
-                $hier = $this->cpToHierarchy($conn, $cpDigits);
-
-                if (!$hier) continue;
-
-                if ($distritoId && $hier->distrito_id != $distritoId) continue;
-                if ($municipioId && $hier->municipio_id != $municipioId) continue;
-                if ($freguesiaId && $hier->freguesia_id != $freguesiaId) continue;
-
-                $placeId = $p['id'];
-
-                if (!$placeId) continue;
-
-                $place = Place::updateOrCreate(
-                    ['place_id' => $placeId],
-                    [
-                        'name'              => $p['displayName']['text'] ?? '',
-                        'formatted_address' => $formatted,
-                        'lat'               => $p['location']['latitude'] ?? null,
-                        'lng'               => $p['location']['longitude'] ?? null,
-                        'types'             => $p['types'] ?? null,
-                        'distrito_id'       => $hier->distrito_id,
-                        'municipio_id'      => $hier->municipio_id,
-                        'freguesia_id'      => $hier->freguesia_id,
-                    ]
-                );
-
-                DB::connection('mysql2')->table('ponto_interesse_place')
-                    ->updateOrInsert([
-                        'ponto_interesse_id' => $poi->id,
-                        'place_id'           => $place->place_id,
-                    ]);
 
                 SearchHistory::create([
-                    'gfuser_id' => $userId,
-                    'place_id'  => $place->place_id,
-                    'query'     => $data['pesquisa'],
+                    'gfuser_id' => $poi->gfuser_id,
+                    'place_id' => $place->place_id,
+                    'query' => $data['pesquisa'],
                 ]);
-
-                $savedCount++;
             }
-
-            if ($savedCount === 0) {
-                DB::connection('mysql2')->rollBack();
-
-                return redirect()->route('interest.create')
-                    ->withInput()
-                    ->withErrors(['pesquisa' => 'Nenhum resultado encontrado.']);
-            }
-
-            DB::connection('mysql2')->commit();
-
-        } catch (\Throwable $e) {
-            DB::connection('mysql2')->rollBack();
-
-            return redirect()->route('interest.create')
-                ->withInput()
-                ->withErrors(['pesquisa' => 'Erro interno: ' . $e->getMessage()]);
+        } else {
+            ProcessPlaces::dispatch(
+                $poi->id,
+                $data['pesquisa'],
+                $distritoId,
+                $municipioId,
+                $freguesiaId
+            );
         }
 
         return redirect()->route('interest.index')
@@ -430,83 +348,41 @@ class PointsInterestController extends Controller
         ]);
 
         $userId = auth()->user()->gfuser_id;
+
         $poi = Pontos_Interesse::where('gfuser_id', $userId)
             ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])
             ->firstOrFail();
 
         $conn = DB::connection('mysql2');
-        $apiKey = config('services.google_maps.key');
 
-        $distritos = $conn->table('distritos')->get();
+        $existingPlaces = Place::query()
+            ->when($data['distrito'] ?? null, fn($q) => $q->where('distrito_id', $data['distrito'] ?? null))
+            ->when($data['municipio'] ?? null, fn($q) => $q->where('municipio_id', $data['municipio'] ?? null))
+            ->when($data['freguesia'] ?? null, fn($q) => $q->where('freguesia_id', $data['freguesia'] ?? null))
+            ->where('name', 'LIKE', '%' . $data['pesquisa'] . '%')
+            ->get();
 
-        $allPlaces = [];
-
-        foreach ($distritos as $distrito) {
-
-            $response = Http::timeout(20)->withHeaders([
-                'Content-Type' => 'application/json',
-                'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-            ])->post('https://places.googleapis.com/v1/places:searchText', [
-                'textQuery' => $data['pesquisa'] . ' ' . $distrito->nome,
-                'regionCode' => 'PT'
-            ]);
-
-            if (!$response->successful()) continue;
-
-            $places = $response->json('places') ?? [];
-
-            foreach ($places as $p) {
-                if (!isset($p['id'])) continue;
-                $allPlaces[$p['id']] = $p;
-            }
-
-            usleep(200000);
-        }
-
-        foreach ($allPlaces as $p) {
-
-            $placeId = $p['id'] ?? null;
-            if (!$placeId) continue;
-
-            $formatted = $p['formattedAddress'] ?? null;
-            $cpDigits  = $this->extractCpDigits($formatted);
-
-            if (!$cpDigits) continue;
-
-            $hier = $this->cpToHierarchy($conn, $cpDigits);
-
-            if (!$hier) continue;
-
-            if (!empty($data['distrito']) && $hier->distrito_id != $data['distrito']) continue;
-            if (!empty($data['municipio']) && $hier->municipio_id != $data['municipio']) continue;
-            if (!empty($data['freguesia']) && $hier->freguesia_id != $data['freguesia']) continue;
-
-            $place = Place::updateOrCreate(
-                ['place_id' => $placeId],
-                [
-                    'name'              => $p['displayName']['text'] ?? '',
-                    'formatted_address' => $formatted,
-                    'lat'               => $p['location']['latitude'] ?? null,
-                    'lng'               => $p['location']['longitude'] ?? null,
-                    'types'             => $p['types'] ?? null,
-                    'distrito_id'       => $hier->distrito_id,
-                    'municipio_id'      => $hier->municipio_id,
-                    'freguesia_id'      => $hier->freguesia_id,
-                ]
-            );
-
-            DB::connection('mysql2')->table('ponto_interesse_place')
-                ->updateOrInsert([
+        if ($existingPlaces->isNotEmpty()) {
+            foreach ($existingPlaces as $place) {
+                DB::connection('mysql2')->table('ponto_interesse_place')->updateOrInsert([
                     'ponto_interesse_id' => $poi->id,
-                    'place_id'           => $place->place_id,
+                    'place_id' => $place->place_id,
                 ]);
 
-            SearchHistory::create([
-                'gfuser_id' => $userId,
-                'place_id'  => $place->place_id,
-                'query'     => $data['pesquisa'],
-            ]);
+                SearchHistory::create([
+                    'gfuser_id' => $userId,
+                    'place_id' => $place->place_id,
+                    'query' => $data['pesquisa'],
+                ]);
+            }
+        } else {
+            ProcessPlaces::dispatch(
+                $poi->id,
+                $data['pesquisa'],
+                $data['distrito'] ?? null,
+                $data['municipio'] ?? null,
+                $data['freguesia'] ?? null
+            );
         }
 
         return redirect()->route('interest.index')

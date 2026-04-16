@@ -123,8 +123,11 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="6" class="px-3 py-3.5 text-sm text-gray-500">
-                                                        Sem locais associados.
+                                                    <td colspan="6" class="px-3 py-3.5 text-sm text-gray-500 text-center">
+                                                        <div class="flex flex-col items-center justify-center gap-2">
+                                                            <img src="{{ asset('images/loader.gif') }}" alt="Carregando" class="w-12 h-12">
+                                                            <span>Carregando, recarregue a página se necessário</span>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @endforelse
@@ -160,7 +163,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 🔽 DETAILS (mantém o teu comportamento)
     const detailsList = document.querySelectorAll('details');
 
     detailsList.forEach(details => {
@@ -189,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ✅ SELECT ALL por grupo
     document.querySelectorAll('[id^="check-all-"]').forEach(master => {
         master.addEventListener('change', function () {
             const groupId = this.id.replace('check-all-', '');
@@ -201,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ✅ Ativar/desativar botão
     document.querySelectorAll('form').forEach(form => {
         const checkboxes = form.querySelectorAll('input[name="places[]"]');
         const button = form.querySelector('button[type="submit"]');
