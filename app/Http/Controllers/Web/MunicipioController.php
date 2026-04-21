@@ -40,7 +40,6 @@ class MunicipioController extends Controller
             'nome'        => ['required', 'string', 'max:255'],
         ]);
 
-        // Se tens unique(['distrito_id','nome']) na migration, isto evita erro “bruto”
         $exists = Municipio::where('distrito_id', $data['distrito_id'])
             ->where('nome', $data['nome'])
             ->where('id', '!=', $municipio->id)

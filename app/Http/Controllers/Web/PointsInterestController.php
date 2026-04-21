@@ -506,22 +506,4 @@ class PointsInterestController extends Controller
 
         return response()->json(['exists' => $q]);
     }
-
-    private function extractCpDigits(?string $formattedAddress): ?string
-    {
-        if (!$formattedAddress) return null;
-        if (!preg_match('/\b(\d{4})\s*[-\s]\s*(\d{3})\b/u', $formattedAddress, $m)) return null;
-        return $m[1] . $m[2];
-    }
-
-    private function cpToHierarchy($conn, string $cpDigits): ?object
-    {
-        return $conn->table('codigos_postais as cp')
-            ->join('freguesias as f', 'f.id', '=', 'cp.freguesia_id')
-            ->join('municipios as m', 'm.id', '=', 'f.municipio_id')
-            ->join('distritos as d', 'd.id', '=', 'm.distrito_id')
-            ->where('cp.codigo', $cpDigits)
-            ->select(['f.id as freguesia_id', 'm.id as municipio_id', 'd.id as distrito_id'])
-            ->first();
-    }
 }

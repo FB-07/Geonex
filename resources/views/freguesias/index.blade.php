@@ -7,18 +7,6 @@
 @endsection
  
 @section('content')
-    <!--
-    <div class="mb-6 flex items-center gap-2">
-        <div class="flex flex-col gap-y-2 w-full">
-            filtros se quiseres
-        </div>
-        <div class="flex gap-3 mt-auto ml-auto ">
-            <x-button-link class="" href="a">
-                {{ __('queues.newQueue') }}
-            </x-button-link>
-        </div>
-    </div>
-    -->
 
     <div class="box mt-6">
         <div class="flex flex-col gap-4">

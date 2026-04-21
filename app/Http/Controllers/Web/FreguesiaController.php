@@ -40,7 +40,6 @@ class FreguesiaController extends Controller
             'nome'         => ['required', 'string', 'max:255'],
         ]);
 
-        // Se tens unique(['municipio_id','nome']) na migration, isto evita erro “bruto”
         $exists = Freguesia::where('municipio_id', $data['municipio_id'])
             ->where('nome', $data['nome'])
             ->where('id', '!=', $freguesia->id)
