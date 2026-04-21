@@ -342,9 +342,9 @@ class PointsInterestController extends Controller
     {
         $data = $request->validate([
             'pesquisa'  => 'required|string|max:255',
-            'distrito'  => 'nullable|integer',
-            'municipio' => 'nullable|integer',
-            'freguesia' => 'nullable|integer',
+            'distrito'  => 'nullable|string|max:255',
+            'municipio' => 'nullable|string|max:255',
+            'freguesia' => 'nullable|string|max:255',
         ]);
 
         $userId = auth()->user()->gfuser_id;
@@ -355,10 +355,22 @@ class PointsInterestController extends Controller
 
         $conn = DB::connection('mysql2');
 
-        $existingPlaces = Place::query()
-            ->when($data['distrito'] ?? null, fn($q) => $q->where('distrito_id', $data['distrito'] ?? null))
-            ->when($data['municipio'] ?? null, fn($q) => $q->where('municipio_id', $data['municipio'] ?? null))
-            ->when($data['freguesia'] ?? null, fn($q) => $q->where('freguesia_id', $data['freguesia'] ?? null))
+        $distritoId = !empty($data['distrito'])
+            ? $conn->table('distritos')->where('nome', $data['distrito'])->value('id')
+            : null;
+
+        $municipioId = !empty($data['municipio'])
+            ? $conn->table('municipios')->where('nome', $data['municipio'])->value('id')
+            : null;
+
+        $freguesiaId = !empty($data['freguesia'])
+            ? $conn->table('freguesias')->where('nome', $data['freguesia'])->value('id')
+            : null;
+
+        $existingPlaces = Place::on('mysql2')
+            ->when($distritoId, fn($q) => $q->where('distrito_id', $distritoId))
+            ->when($municipioId, fn($q) => $q->where('municipio_id', $municipioId))
+            ->when($freguesiaId, fn($q) => $q->where('freguesia_id', $freguesiaId))
             ->where('name', 'LIKE', '%' . $data['pesquisa'] . '%')
             ->get();
 
@@ -379,9 +391,9 @@ class PointsInterestController extends Controller
             ProcessPlaces::dispatch(
                 $poi->id,
                 $data['pesquisa'],
-                $data['distrito'] ?? null,
-                $data['municipio'] ?? null,
-                $data['freguesia'] ?? null
+                $distritoId,
+                $municipioId,
+                $freguesiaId
             );
         }
 

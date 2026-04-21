@@ -6,7 +6,7 @@
 
 @section('content')
     <div class="overflow-y-hidden">
-        <div id="content" class="flex flex-row pb-2">
+        {{-- <div id="content" class="flex flex-row pb-2">
             <div
                 class="rounded-full bg-proximo-700 backdrop-blur border border-gray-200 px-3 py-2.5 text-white shadow-md focus:ring-indigo-500">
                 <button id="btn-filtros" type="button">Filtrar</button>
@@ -74,7 +74,7 @@
                     <span class="text-sm pb-0.5">Limpar</span>
                 </a>
             </div>
-        </div>
+        </div> --}}
 
         <div id="mapWrapper" class="relative w-full h-full">
             <div id="iconsMap"
@@ -114,13 +114,13 @@
             </span>
 
             <div>
-                <div id="map" style="height: 77.5vh; width: full;"></div>
+                <div id="map" style="height: 85vh; width: full;"></div>
             </div>
         </div>
     </div>
 
     @push('scripts')
-        @vite('resources/js/pages/map.js')
+        @vite('resources/js/Pages/map.js')
 
         <script>
             window.APP = {

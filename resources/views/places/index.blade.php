@@ -35,7 +35,7 @@
                         <td class="px-3 py-4">{{ $place->lng }}</td>
 
                         <td class="px-3 py-4">
-                            <x-tecnical-tactions 
+                            <x-tecnical-tactions
                                 :editData="route('places.edit', $place)" 
                                 :deleteData="route('places.destroy', $place)" 
                             />

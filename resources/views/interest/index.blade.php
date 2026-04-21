@@ -55,7 +55,7 @@
 
                                 <div class="flex items-center gap-2">
                                     <span class="text-gray-500">
-                                        <x-tecnical-tactions 
+                                        <x-tecnical-tactions-poi
                                             :editData="route('interest.edit', $key)" 
                                             :deleteData="route('interest.destroy', $key)" 
                                             :poi="$g"

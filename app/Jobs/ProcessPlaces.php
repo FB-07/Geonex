@@ -56,23 +56,40 @@ class ProcessPlaces implements ShouldQueue
 
         foreach ($freguesias as $freguesia) {
             $textQuery = $this->searchQuery . ' ' . $freguesia->nome;
-            Log::info("Procurando: {$textQuery}");
 
-            $response = Http::timeout(20)->withHeaders([
-                'Content-Type' => 'application/json',
-                'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
-            ])->post('https://places.googleapis.com/v1/places:searchText', [
-                'textQuery' => $textQuery,
-                'regionCode' => 'PT'
-            ]);
+            $cached = DB::table('place_search_cache')
+                ->where('query', $textQuery)
+                ->where('freguesia_id', $freguesia->id)
+                ->first();
 
-            if (!$response->successful()) {
-                Log::warning("API falhou para {$textQuery}");
-                continue;
+            if ($cached) {
+                $places = json_decode($cached->response_json, true);
+            } else {
+                $response = Http::timeout(20)->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'X-Goog-Api-Key' => $apiKey,
+                    'X-Goog-FieldMask' => 'places.id,places.displayName.text,places.formattedAddress,places.location,places.types'
+                ])->post('https://places.googleapis.com/v1/places:searchText', [
+                    'textQuery' => $textQuery,
+                    'regionCode' => 'PT'
+                ]);
+
+                if (!$response->successful()) {
+                    continue;
+                }
+
+                $places = $response->json('places') ?? [];
+
+                DB::table('place_search_cache')->updateOrInsert([
+                    'query' => $textQuery,
+                    'freguesia_id' => $freguesia->id,
+                ], [
+                    'response_json' => json_encode($places),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]);
             }
 
-            $places = $response->json('places') ?? [];
             foreach ($places as $p) {
                 if (!isset($p['id'])) continue;
                 $allPlaces[$p['id']] = $p;
@@ -93,9 +110,7 @@ class ProcessPlaces implements ShouldQueue
                 $found = false;
 
                 foreach (explode(' ', $name) as $nameWord) {
-                    $distance = levenshtein($word, $nameWord);
-
-                    if ($distance <= 2) {
+                    if (levenshtein($word, $nameWord) <= 2) {
                         $found = true;
                         break;
                     }
@@ -120,10 +135,8 @@ class ProcessPlaces implements ShouldQueue
             if ($this->municipioId && $hier->municipio_id != $this->municipioId) continue;
             if ($this->freguesiaId && $hier->freguesia_id != $this->freguesiaId) continue;
 
-            $placeId = $p['id'];
-
             $place = Place::updateOrCreate(
-                ['place_id' => $placeId],
+                ['place_id' => $p['id']],
                 [
                     'name' => $p['displayName']['text'],
                     'formatted_address' => $formatted,
