@@ -28,9 +28,9 @@
                         <td class="px-3 py-4">{{ $place->id }}</td>
                         <td class="px-3 py-4">{{ $place->name }}</td>
                         <td class="px-3 py-4">{{ $place->formatted_address }}</td>
-                        <td class="px-3 py-4">POR FAZER</td>
-                        <td class="px-3 py-4">POR FAZER</td>
-                        <td class="px-3 py-4">POR FAZER</td>
+                        <td class="px-3 py-4">{{ $place->distrito->nome ?? 'N/A' }}</td>
+                        <td class="px-3 py-4">{{ $place->municipio->nome ?? 'N/A' }}</td>
+                        <td class="px-3 py-4">{{ $place->freguesia->nome ?? 'N/A' }}</td>
                         <td class="px-3 py-4">{{ $place->lat }}</td>
                         <td class="px-3 py-4">{{ $place->lng }}</td>
 

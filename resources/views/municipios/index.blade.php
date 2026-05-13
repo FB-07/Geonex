@@ -14,14 +14,14 @@
             <x-tecnical-table>
                 <x-slot:head>
                     <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
-                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">DISTRITO_ID</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">DISTRITO</th>
                     <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">NOME</th>
                 </x-slot:head>
 
                 @foreach($municipios as $municipio)
                     <tr class="divide-y divide-gray-200">
                         <td class="px-3 py-4">{{ $municipio->id }}</td>
-                        <td class="px-3 py-4">{{ $municipio->distrito_id }}</td>
+                        <td class="px-3 py-4">{{ $municipio->distrito->nome ?? 'N/A' }}</td>
                         <td class="px-3 py-4">{{ $municipio->nome }}</td>
 
                         <td class="px-3 py-4">

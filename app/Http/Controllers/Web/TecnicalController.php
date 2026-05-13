@@ -18,8 +18,7 @@ class TecnicalController extends Controller
         }
 
         $perPage = max((int)$request->session()->get('resultsPerPage', 10), 1);
-        $places = Place::orderBy('id')->paginate($perPage);
-
+        $places = Place::with(['distrito', 'municipio', 'freguesia'])->orderBy('id')->paginate($perPage);
         return view('places.index', compact('places'));
     }
 }

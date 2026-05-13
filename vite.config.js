@@ -10,7 +10,7 @@ export default defineConfig({
                 "resources/js/app.tsx",
             ],
             refresh: true,
-            // IMPORTANT for LAN access (other computers)
+
             detectTls: false,
         }),
         react(),

@@ -21,7 +21,7 @@
                 @foreach($freguesias as $freguesia)
                     <tr class="divide-y divide-gray-200">
                         <td class="px-3 py-4">{{ $freguesia->id }}</td>
-                        <td class="px-3 py-4">{{ $freguesia->municipio_id }}</td>
+                        <td class="px-3 py-4">{{ $freguesia->municipio->nome ?? 'N/A' }}</td>
                         <td class="px-3 py-4">{{ $freguesia->nome }}</td>
 
                         <td class="px-3 py-4">

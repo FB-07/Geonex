@@ -21,8 +21,7 @@ class FreguesiaController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $freguesias = Freguesia::orderBy('id')
-            ->paginate($perPage);
+        $freguesias = Freguesia::with(['municipio'])->orderBy('id')->paginate($perPage);
 
         return view('freguesias.index', compact('freguesias'));
     }

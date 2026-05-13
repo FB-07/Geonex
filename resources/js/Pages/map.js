@@ -255,7 +255,10 @@ function makeMarkerIcon(name, color = null) {
 }
 
 async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {}) {
-  if (!map) return { places: [] };
+  if (!map) {
+    console.warn("Map ainda não inicializado");
+    return { places: [] };
+  }
 
   query = (query || "").trim();
   if (!query) return { places: [] };
@@ -271,6 +274,16 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   const municipio = sendZona ? (el("municipios-select")?.value || "") : "";
   const freguesia = sendZona ? (el("freguesias-select")?.value || "") : "";
 
+  // 🔥 usar centro do mapa (em vez de coordenadas fixas)
+  const center = map.getCenter();
+  const lat = center?.lat();
+  const lng = center?.lng();
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    console.error("Centro do mapa inválido");
+    return { places: [] };
+  }
+
   let res;
   try {
     res = await fetch("/api/places/search", {
@@ -281,8 +294,8 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
       },
       body: JSON.stringify({
         query,
-        lat: 39.3999,
-        lng: -8.2245,
+        lat,
+        lng,
         radius: 50000,
         ...filters,
         distrito,
@@ -296,16 +309,25 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   }
 
   if (!res.ok) {
-    console.error("API error:", res.status, await res.text());
-    return { places: [] };
+    const text = await res.text();
+    console.error("API error:", res.status, text);
+    return { places: [], error: text };
   }
 
   const data = await res.json();
-  const places = data.places || [];
-  if (!places.length) return { places: [] };
+  console.log("API response:", data); // 👈 debug importante
 
-  const prev = recentMarkers.get(query);
-  if (prev?.markers?.length) prev.markers.forEach((m) => m.setMap(null));
+  const places = data?.places || [];
+  if (!places.length) {
+    console.warn("Sem resultados");
+    return { places: [] };
+  }
+
+  // 🔥 limpar TODOS os marcadores antigos (não só da mesma query)
+  recentMarkers.forEach(({ markers }) => {
+    markers.forEach((m) => m.setMap(null));
+  });
+  recentMarkers.clear();
 
   const created = [];
   const bounds = new google.maps.LatLngBounds();
@@ -313,6 +335,7 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   places.forEach((p) => {
     const lat = Number(p.lat);
     const lng = Number(p.lng);
+
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     const pos = { lat, lng };
@@ -320,7 +343,7 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
     const marker = new google.maps.Marker({
       map,
       position: pos,
-      title: p.name,
+      title: p.name || "Sem nome",
       icon: makeMarkerIcon(query),
     });
 
@@ -328,10 +351,18 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
     bounds.extend(pos);
   });
 
+  if (!created.length) {
+    console.warn("Nenhum marcador válido criado");
+    return { places: [] };
+  }
+
   recentMarkers.set(query, { markers: created, visible: true });
   renderRecents();
 
-  if (fitBounds) map.fitBounds(bounds);
+  // 🔥 evitar erro com bounds vazio
+  if (fitBounds && !bounds.isEmpty()) {
+    map.fitBounds(bounds);
+  }
 
   return { places };
 }
@@ -339,9 +370,16 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
 async function searchPlaces() {
   const input = el("search");
   const query = input?.value?.trim();
-  if (!query) return;
 
-  await searchPlacesByTerm(query, { fitBounds: true, save: true });
+  if (!query) {
+    console.warn("Query vazia");
+    return;
+  }
+
+  return await searchPlacesByTerm(query, {
+    fitBounds: true,
+    save: true,
+  });
 }
 
 function mostrarLocalizacaoNoMapa() {

@@ -21,8 +21,7 @@ class MunicipioController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $municipios = Municipio::orderBy('id')
-            ->paginate($perPage);
+        $municipios = Municipio::with(['distrito'])->orderBy('id')->paginate($perPage);
 
         return view('municipios.index', compact('municipios'));
     }

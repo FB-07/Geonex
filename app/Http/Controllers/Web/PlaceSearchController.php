@@ -80,6 +80,16 @@ class PlaceSearchController extends Controller
         $connName = (new Place())->getConnectionName() ?: config('database.default');
         $conn = DB::connection($connName);
 
+        try {
+            Log::info('DB CHECK', [
+                'place_connection' => $connName,
+                'place_database' => $conn->getDatabaseName(),
+                'has_places_table' => Schema::connection($connName)->hasTable('places'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('DB CHECK FAILED', ['msg' => $e->getMessage()]);
+        }
+
         $category = $data['category'] ?? null;
         $googleTypes = $this->mapCategoryToGoogleType($category);
 
@@ -94,11 +104,11 @@ class PlaceSearchController extends Controller
         $dbQuery = Place::on($connName)
             ->whereRaw('LOWER(name) LIKE ?', ['%' . $queryNorm . '%']);
 
-        if (!empty($googleTypes)) {
+        if (!empty($googleTypes) && is_array($googleTypes)) {
             $dbQuery->where(function ($q) use ($googleTypes) {
                 foreach ($googleTypes as $t) {
                     $q->orWhereRaw('JSON_CONTAINS(types, ?)', [json_encode($t)])
-                    ->orWhere('types', 'LIKE', '%' . $t . '%');
+                      ->orWhere('types', 'LIKE', '%' . $t . '%');
                 }
             });
         }
@@ -117,7 +127,6 @@ class PlaceSearchController extends Controller
         }
 
         $apiKey = config('services.google_maps.key');
-
         if (!$apiKey) {
             return response()->json(['error' => 'Google Maps key not configured'], 500);
         }
@@ -131,7 +140,7 @@ class PlaceSearchController extends Controller
             'regionCode' => 'PT',
         ];
 
-        if (!empty($googleTypes)) {
+        if (!empty($googleTypes) && is_array($googleTypes)) {
             $body['includedTypes'] = $googleTypes;
         }
 
@@ -145,6 +154,8 @@ class PlaceSearchController extends Controller
                         'radius' => (float)($data['radius'] ?? 15000),
                     ],
                 ];
+            } else {
+                $body['locationRestriction'] = $this->portugalRectangleRestriction();
             }
         } else {
             $body['locationRestriction'] = $this->portugalRectangleRestriction();
@@ -156,40 +167,15 @@ class PlaceSearchController extends Controller
             'X-Goog-FieldMask' => $fieldMask,
         ])->post('https://places.googleapis.com/v1/places:searchText', $body);
 
-        $places = $resp->successful() ? ($resp->json('places') ?? []) : [];
-
-        if (!count($places) && !$zonaQuery) {
-
-            $distritos = $conn->table('distritos')->pluck('nome');
-
-            $allPlaces = [];
-
-            foreach ($distritos as $distrito) {
-
-                $resp = Http::timeout(20)->withHeaders([
-                    'Content-Type'     => 'application/json',
-                    'X-Goog-Api-Key'   => $apiKey,
-                    'X-Goog-FieldMask' => $fieldMask,
-                ])->post('https://places.googleapis.com/v1/places:searchText', [
-                    'textQuery'  => $data['query'] . ' ' . $distrito,
-                    'regionCode' => 'PT',
-                ]);
-
-                if (!$resp->successful()) continue;
-
-                $res = $resp->json('places') ?? [];
-
-                foreach ($res as $p) {
-                    if (!isset($p['id'])) continue;
-                    $allPlaces[$p['id']] = $p;
-                }
-
-                usleep(200000);
-            }
-
-            $places = array_values($allPlaces);
+        if (!$resp->successful()) {
+            return response()->json([
+                'error'   => 'Google API error',
+                'status'  => $resp->status(),
+                'details' => $resp->json(),
+            ], 422);
         }
 
+        $places = $resp->json('places') ?? [];
         if (!count($places)) {
             return response()->json(['source' => 'google', 'places' => []]);
         }
@@ -198,7 +184,6 @@ class PlaceSearchController extends Controller
         $skipped = 0;
 
         foreach ($places as $p) {
-
             $placeId = $p['id'] ?? null;
             $loc = $p['location'] ?? null;
 
@@ -215,7 +200,8 @@ class PlaceSearchController extends Controller
 
             if ($isFilteringByZona && !$cpDigits) { $skipped++; continue; }
 
-            $hier = $cpDigits ? $this->cpToHierarchy($conn, $cpDigits) : null;
+            $hier = null;
+            if ($cpDigits) $hier = $this->cpToHierarchy($conn, $cpDigits);
 
             if ($isFilteringByZona && !$hier) { $skipped++; continue; }
 
@@ -234,16 +220,14 @@ class PlaceSearchController extends Controller
                         'lat'               => (float)$loc['latitude'],
                         'lng'               => (float)$loc['longitude'],
                         'types'             => $types,
+
                         'distrito_id'       => $hier->distrito_id ?? null,
                         'municipio_id'      => $hier->municipio_id ?? null,
                         'freguesia_id'      => $hier->freguesia_id ?? null,
                     ]
                 );
             } catch (\Throwable $e) {
-                Log::error('SAVE FAILED', [
-                    'place_id' => $placeId,
-                    'msg' => $e->getMessage()
-                ]);
+                Log::error('SAVE FAILED', ['place_id' => $placeId, 'msg' => $e->getMessage()]);
             }
         }
 
