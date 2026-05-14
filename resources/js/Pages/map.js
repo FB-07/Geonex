@@ -220,7 +220,7 @@ function loadGoogleMaps() {
     document.head.appendChild(script);
   });
 }
-//
+
 function bindSearch() {
   const searchInput = el("search");
   if (!searchInput) return;
@@ -274,7 +274,6 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   const municipio = sendZona ? (el("municipios-select")?.value || "") : "";
   const freguesia = sendZona ? (el("freguesias-select")?.value || "") : "";
 
-  // 🔥 usar centro do mapa (em vez de coordenadas fixas)
   const center = map.getCenter();
   const lat = center?.lat();
   const lng = center?.lng();
@@ -315,7 +314,7 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   }
 
   const data = await res.json();
-  console.log("API response:", data); // 👈 debug importante
+  console.log("API response:", data); 
 
   const places = data?.places || [];
   if (!places.length) {
@@ -323,7 +322,6 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
     return { places: [] };
   }
 
-  // 🔥 limpar TODOS os marcadores antigos (não só da mesma query)
   recentMarkers.forEach(({ markers }) => {
     markers.forEach((m) => m.setMap(null));
   });
@@ -359,7 +357,6 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   recentMarkers.set(query, { markers: created, visible: true });
   renderRecents();
 
-  // 🔥 evitar erro com bounds vazio
   if (fitBounds && !bounds.isEmpty()) {
     map.fitBounds(bounds);
   }
