@@ -48,4 +48,3 @@
     </div>
 @endsection
  
-{{--4 tabelas distrios(distrito_id PK)<-municipios(municipio_id PK)<-freguesias(freguesia_id PK)<-codigos_postais(codigo PK) e quero pegar o codigo postal da morada do place e ver atraves das FK se os places estao no distrito/municipio/freguesia determidado pelo utilizador se tiver guarda na bd e mostra--}}
