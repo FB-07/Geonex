@@ -15,10 +15,23 @@ return new class extends Migration {
             $table->decimal('lat', 10, 7);
             $table->decimal('lng', 10, 7);
             $table->json('types')->nullable();
-            $table->char('color' ,7)->nullable();
-            $table->foreignId('distrito_id')->nullable()->after('color')->constrained('distritos')->nullOnDelete();
-            $table->foreignId('municipio_id')->nullable()->after('distrito_id')->constrained('municipios')->nullOnDelete();
-            $table->foreignId('freguesia_id')->nullable()->after('municipio_id')->constrained('freguesias')->nullOnDelete();
+            $table->char('color', 7)->nullable();
+
+            $table->foreignId('distrito_id')
+                ->nullable()
+                ->constrained('distritos')
+                ->nullOnDelete();
+
+            $table->foreignId('municipio_id')
+                ->nullable()
+                ->constrained('municipios')
+                ->nullOnDelete();
+
+            $table->foreignId('freguesia_id')
+                ->nullable()
+                ->constrained('freguesias')
+                ->nullOnDelete();
+
             $table->timestamps();
         });
     }

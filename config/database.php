@@ -65,11 +65,11 @@ return [
 
         'mysql2' => [
             'driver' => 'mysql',
-            'host' => env('DB2_HOST'),
+            'host' => env('DB2_HOST', env('DB_HOST')),
             'port' => env('DB2_PORT', 3306),
-            'database' => env('DB2_DATABASE'),
-            'username' => env('DB2_USERNAME'),
-            'password' => env('DB2_PASSWORD'),
+            'database' => env('DB2_DATABASE', env('DB_DATABASE')),
+            'username' => env('DB2_USERNAME', env('DB_USERNAME')),
+            'password' => env('DB2_PASSWORD', env('DB_PASSWORD')),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ],

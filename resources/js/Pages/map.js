@@ -380,32 +380,59 @@ async function searchPlaces() {
 }
 
 function mostrarLocalizacaoNoMapa() {
+  const t = window.APP?.i18n ?? {};
+
   if (!("geolocation" in navigator)) {
-    alert("O teu browser não suporta geolocalização.");
+    alert(t.geoUnsupported ?? "O teu browser não suporta geolocalização.");
     return;
   }
 
+  if (!window.isSecureContext) {
+    alert(t.geoInsecure ?? "A geolocalização só funciona em HTTPS ou localhost.");
+    return;
+  }
+
+  const onSuccess = (pos) => {
+    const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+    map.setCenter(userPos);
+    map.setZoom(16);
+
+    if (userCircle) userCircle.setMap(null);
+
+    userCircle = new google.maps.Circle({
+      map,
+      center: userPos,
+      radius: pos.coords.accuracy,
+      strokeOpacity: 1,
+      strokeWeight: 2,
+      fillOpacity: 0.25,
+    });
+  };
+
+  const onError = (err) => {
+    console.error("Geolocation error", err.code, err.message);
+    const msg =
+      err.code === err.PERMISSION_DENIED
+        ? t.geoDenied ?? "Permissão de localização negada. Ativa-a nas definições do browser e do sistema."
+        : err.code === err.TIMEOUT
+          ? t.geoTimeout ?? "O pedido de localização demorou demasiado."
+          : t.geoUnavailable ?? "Não foi possível obter a tua localização.";
+    alert(msg);
+  };
+
+  // Alta precisão falha muitas vezes em desktops (sem GPS): tenta de novo com baixa precisão.
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      const accuracy = pos.coords.accuracy;
-
-      map.setCenter(userPos);
-      map.setZoom(16);
-
-      if (userCircle) userCircle.setMap(null);
-
-      userCircle = new google.maps.Circle({
-        map,
-        center: userPos,
-        radius: accuracy,
-        strokeOpacity: 1,
-        strokeWeight: 2,
-        fillOpacity: 0.25,
+    onSuccess,
+    (err) => {
+      if (err.code === err.PERMISSION_DENIED) return onError(err);
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000,
       });
     },
-    () => alert("Não foi possível obter a tua localização."),
-    { enableHighAccuracy: true }
+    { enableHighAccuracy: true, timeout: 8000 }
   );
 }
 

@@ -21,5 +21,9 @@ return [
     'password' => 'Password',
     'signIn' => 'Sign In',
     'logoutSuccess' => 'You have been logged out of the application.',
+    'profile' => 'Profile',
+    'changePassword' => 'Password',
+    'logout' => 'Logout',
+    'language' => 'Language',
     'loginSuccess' => 'You have been logged in to the application.',
 ];

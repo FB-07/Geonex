@@ -12,8 +12,7 @@
         <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center bg-white text-gray-500 shadow-md">
             <div class="flex h-full w-80 shrink-0 items-center justify-between bg-proximo-800 px-6 py-2">
                 <a class="flex shrink-0 cursor-pointer items-center pt-2" href="{{ route('map.index') }}">
-                    <img src={{ asset('images/logo.png') }} alt="Proximo Logo">
-                    {{-- <img src={{ asset('images/logo.png') }} class="h-12 w-auto" alt="Proximo Logo"> --}}
+                    <img src="{{ asset('images/logo.png') }}" alt="Proximo Logo">
                 </a>
                 <button type="button" class="text-white" @click="open = !open">
                     <div x-show="open"><x-heroicon-o-x-mark class="h-5 w-5 flex-shrink-0" /></div>
@@ -48,16 +47,19 @@
 
                         <a href="{{ url('/profile') }}"
                             class="flex items-center justify-between gap-2 px-3 py-1 text-sm leading-6">
-                            Utilizador
+                            {{ __('auth.profile') }}
                         </a>
                         <a href="{{ url('#') }}"
                             class="flex items-center justify-between gap-2 px-3 py-1 text-sm leading-6">
-                            Password
+                            {{ __('auth.changePassword') }}
                         </a>
-                        <a href={{ route('logout') }}
-                            class="leading- flex items-center justify-between gap-2 px-3 py-1 text-sm" class="bg-gray-50">
-                            Logout
-                        </a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit"
+                                class="flex w-full items-center justify-between gap-2 px-3 py-1 text-left text-sm leading-6">
+                                {{ __('auth.logout') }}
+                            </button>
+                        </form>
                     </div>
 
                 </div>

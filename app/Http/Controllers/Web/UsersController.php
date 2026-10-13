@@ -20,7 +20,7 @@ class UsersController extends Controller
 
         $resultsPerPage = max((int) $request->session()->get('resultsPerPage', 10), 1);
 
-        $users = DB::table('gfuser')->paginate($resultsPerPage);
+        $users = DB::table('users')->paginate($resultsPerPage);
         return view('users/index', [
             'users' => $users,
             'user' => $user

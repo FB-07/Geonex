@@ -16,6 +16,8 @@ class AuthController extends Controller
 
     public function changeLang($langcode)
     {
+        abort_unless(in_array($langcode, ['en', 'pt'], true), 404);
+
         App::setLocale($langcode);
         session()->put("lang_code", $langcode);
         return redirect()->back();
@@ -25,28 +27,31 @@ class AuthController extends Controller
     {
         $request->validate([
             'username' => 'required',
-            'password' => 'required'
+            'password' => 'required',
         ]);
 
         $credentials = [
             'gfuser_alias' => $request->username,
-            'password' => $request->password
+            'password' => $request->password,
         ];
 
-        // $remember = $request->filled('remember-me');
-
-        // if (Auth::attempt($credentials, $remember)) {
         if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
 
-            return redirect()->intended('map')->with(['success' => trans('auth.loginSuccess')]);
+            return redirect()->intended('map')
+                ->with('success', trans('auth.loginSuccess'));
         }
 
-        return redirect()->back()->with('error', trans('auth.invalidPassword'));
+        return redirect()->back()
+            ->withInput($request->only('username'))
+            ->with('error', trans('auth.invalidPassword'));
     }
-
-    public function destroy()
+    
+    public function destroy(Request $request)
     {
         Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect('/login')->with(['success' => trans('auth.logoutSuccess')]);
     }

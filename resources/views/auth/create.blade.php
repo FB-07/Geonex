@@ -17,18 +17,15 @@
 
                 <div class="mt-10 flex flex-col gap-4">
 
-                    <form action={{ route('login') }} method="POST" class="space-y-6">
+                    <form action="{{ route('login') }}" method="POST" class="space-y-6">
                         @csrf
                         <div>
                             <label for="username"
                                 class="block text-sm font-medium leading-6 text-white">{{ __('auth.username') }}</label>
                             <div class="mt-2">
-                                <input id="username" name="username" type="text" placeholder="Username" value="vsimoes"
+                                <input id="username" name="username" type="text" placeholder="{{ __('auth.username') }}" value="{{ old('username') }}" required
                                     autocomplete="username"
                                     class="block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-proximo-700 sm:text-sm sm:leading-6">
-                                @error('email')
-                                    <p class="text-danger mt-2 text-xs">{{ $message }}</p>
-                                @enderror
                             </div>
                         </div>
 
@@ -36,12 +33,9 @@
                             <label for="password"
                                 class="block text-sm font-medium leading-6 text-white">{{ __('auth.password') }}</label>
                             <div class="mt-2">
-                                <input id="password" name="password" type="password" placeholder="Password" value="ola"
+                                <input id="password" name="password" type="password" placeholder="{{ __('auth.password') }}"
                                     autocomplete="current-password" required
                                     class="block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-proximo-700 sm:text-sm sm:leading-6">
-                                @error('password')
-                                    <p class="text-danger mt-2 text-xs">{{ $message }}</p>
-                                @enderror
                             </div>
                         </div>
 
@@ -78,7 +72,7 @@
             </div>
         </div>
         <div class="relative hidden w-0 flex-1 lg:block">
-            <img class="absolute inset-0 h-full w-full object-cover" src={{ asset('images/app-proximo.png') }}
+            <img class="absolute inset-0 h-full w-full object-cover" src="{{ asset('images/app-proximo.png') }}"
                 alt="">
         </div>
     </div>

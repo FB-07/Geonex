@@ -53,9 +53,6 @@
                         <td class="hidden whitespace-nowrap px-3 py-4 text-sm text-gray-500 xl:table-cell">
                             {{ $user->gfuser_email }}
                         </td>
-                        <td class="hidden whitespace-nowrap px-3 py-4 text-sm text-gray-500 xl:table-cell">
-                            {{ $user->gfuser_type }}
-                        </td>
                         <td class="ml-3 flex justify-end gap-2 whitespace-nowrap py-4 pr-0 text-sm font-medium">
                             <a href="{{ route('users.edit', $user->gfuser_id) }}"
                                 class="text-proximo-600 hover:text-proximo-900">

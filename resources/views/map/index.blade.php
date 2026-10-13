@@ -5,7 +5,7 @@
 @endsection
 
 @section('content')
-    <div class="overflow-y-hidden">
+    <div class="-m-6 h-[calc(100%+3rem)] overflow-hidden">
         {{-- <div id="content" class="flex flex-row pb-2">
             <div
                 class="rounded-full bg-proximo-700 backdrop-blur border border-gray-200 px-3 py-2.5 text-white shadow-md focus:ring-indigo-500">
@@ -85,7 +85,7 @@
 
             <div class="h-10 w-6 absolute z-[1001] text-gray-700 top-[20px] left-4">
                 <input id="search" type="search" class="border shadow-md bg-white border-gray-400"
-                    placeholder="Pesquisar (ex: Continente)">
+                    placeholder="{{ __('map.search') }}">
             </div>
 
             <div class="h-8 w-8 flex items-center justify-center rounded-full bg-white absolute z-[1001] top-[70px] left-4">
@@ -94,7 +94,7 @@
 
             <div id="pontos_interesseInfo"
                 class="hidden absolute p-2 rounded-md z-[1001] top-[110px] left-4 bg-white max-h-[170px] w-[205px] overflow-y-scroll shadow-md">
-                <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Pontos de interesse</p>
+                <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">{{ __('navbar.p_interest') }}</p>
                 <div id="pontos_interesseList"></div>
             </div>
 
@@ -105,7 +105,7 @@
 
             <div id="recentInfo"
                 class="hidden absolute p-2 rounded-md z-[1001] top-[110px] left-4 bg-white max-h-[108px] w-[205px] overflow-y-scroll shadow-md">
-                <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">Recentes</p>
+                <p class="flex justify-center bg-gray-500 rounded-md text-white font-bold">{{ __('map.recent') }}</p>
                 <div id="recentList"></div>
             </div>
 
@@ -113,9 +113,7 @@
                 <x-heroicon-o-x-circle class="w-6 h-6 text-red-500 hover:text-red-700 cursor-pointer" />
             </span>
 
-            <div>
-                <div id="map" style="height: 85vh; width: full;"></div>
-            </div>
+            <div id="map" class="h-full w-full"></div>
         </div>
     </div>
 
@@ -126,6 +124,7 @@
             window.APP = {
                 googleMapsKey: @json(config('services.google_maps.key')),
                 apiBase: @json(url('/api')),
+                i18n: @json(__('map.geo')),
             };
         </script>
     @endpush
