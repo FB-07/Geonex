@@ -314,7 +314,6 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
   }
 
   const data = await res.json();
-  console.log("API response:", data); 
 
   const places = data?.places || [];
   if (!places.length) {

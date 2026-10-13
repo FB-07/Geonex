@@ -21,9 +21,16 @@ class MunicipioController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $municipios = Municipio::with(['distrito'])->orderBy('id')->paginate($perPage);
+        $municipios = Municipio::with(['distrito'])
+            ->when($request->filled('q'), fn ($q) => $q->where('nome', 'like', '%' . $request->q . '%'))
+            ->when($request->filled('distrito_id'), fn ($q) => $q->where('distrito_id', $request->distrito_id))
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('municipios.index', compact('municipios'));
+        $distritos = Distrito::orderBy('nome')->pluck('nome', 'id');
+
+        return view('municipios.index', compact('municipios', 'distritos'));
     }
 
     public function edit(Municipio $municipio)

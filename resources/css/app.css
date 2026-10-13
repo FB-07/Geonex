@@ -92,3 +92,7 @@ body {
 .label {
     @apply text-sm font-medium leading-6 text-gray-900;
 }
+
+[x-cloak] {
+    display: none !important;
+}

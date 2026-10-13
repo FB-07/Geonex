@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Models\Distrito;
 use App\Models\Freguesia;
 use App\Models\Municipio;
 use Illuminate\Http\Request;
@@ -21,9 +22,21 @@ class FreguesiaController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $freguesias = Freguesia::with(['municipio'])->orderBy('id')->paginate($perPage);
+        $freguesias = Freguesia::with(['municipio.distrito'])
+            ->when($request->filled('q'), fn ($q) => $q->where('nome', 'like', '%' . $request->q . '%'))
+            ->when($request->filled('distrito_id'), fn ($q) => $q->whereHas('municipio', fn ($m) => $m->where('distrito_id', $request->distrito_id)))
+            ->when($request->filled('municipio_id'), fn ($q) => $q->where('municipio_id', $request->municipio_id))
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('freguesias.index', compact('freguesias'));
+        $distritos = Distrito::orderBy('nome')->pluck('nome', 'id');
+        $municipios = Municipio::query()
+            ->when($request->filled('distrito_id'), fn ($q) => $q->where('distrito_id', $request->distrito_id))
+            ->orderBy('nome')
+            ->pluck('nome', 'id');
+
+        return view('freguesias.index', compact('freguesias', 'distritos', 'municipios'));
     }
 
     public function edit(Freguesia $freguesia)

@@ -10,14 +10,15 @@
 
     <div class="box mt-6">
         <div class="flex flex-col gap-4">
+            <x-tecnical-filters :search="__('technical.search')" />
             <x-items-per-page name="resultsPerPage" default="10" />
             <x-tecnical-table>
                 <x-slot:head>
-                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
-                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">NOME</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 uppercase">{{ __('technical.id') }}</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 uppercase">{{ __('technical.district') }}</th>
                 </x-slot:head>
 
-                @foreach($distritos as $distrito)
+                @forelse($distritos as $distrito)
                     <tr class="divide-y divide-gray-200">
                         <td class="px-3 py-4">{{ $distrito->id }}</td>
                         <td class="px-3 py-4">{{ $distrito->nome }}</td>
@@ -29,10 +30,12 @@
                             />
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="3" class="px-3 py-4 text-center text-sm text-gray-500">{{ __('technical.empty') }}</td></tr>
+                @endforelse
             </x-tecnical-table>
         {{ $distritos->links() }}
-        </div class="overflow-x-auto">
+        </div>
     </div>
 @endsection
  

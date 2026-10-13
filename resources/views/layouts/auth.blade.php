@@ -7,7 +7,6 @@
 @endphp
 
 @section('body')
-@stack('scripts')
     <div x-data="{ open: true }" @keydown.window.escape="open = false" class="flex h-full flex-col">
         <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center bg-white text-gray-500 shadow-md">
             <div class="flex h-full w-80 shrink-0 items-center justify-between bg-proximo-800 px-6 py-2">
@@ -20,7 +19,7 @@
                 </button>
             </div>
 
-            <div x-data="{ show: false }" class="flex h-full flex-1 items-center px-6">
+            <div x-data="{ show: false }" @click.outside="show = false" class="flex h-full flex-1 items-center px-6">
                 @yield('breadcrumbs')
 
                 @yield('search')
@@ -29,15 +28,10 @@
                     <!-- Separator -->
                     <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>
 
-                    <div>
-                        <select onchange="changeLanguage(this.value)" class="border-none focus:ring-0 text-sm">
-                            <option value="en" {{ App::getLocale() == 'en' ? 'selected' : '' }}>English</option>
-                            <option value="pt" {{ App::getLocale() == 'pt' ? 'selected' : '' }}>Português</option>
-                        </select>
-                    </div>
+                    <x-language-switcher class="border-none focus:ring-0 text-sm" />
 
                     <div class="relative flex cursor-pointer items-center gap-4" @click="show = !show">
-                        <div class="text-sm font-semibold text-gray-900">{{ $user->gfuser_alias }}</div>
+                        <div class="text-sm font-semibold text-gray-900">{{ $user?->gfuser_alias }}</div>
                         <x-heroicon-o-chevron-down class="h-4 w-4 flex-shrink-0 text-gray-900 font-semibold" />
                     </div>
 
@@ -49,7 +43,7 @@
                             class="flex items-center justify-between gap-2 px-3 py-1 text-sm leading-6">
                             {{ __('auth.profile') }}
                         </a>
-                        <a href="{{ url('#') }}"
+                        <a href="{{ route('profile.edit') }}"
                             class="flex items-center justify-between gap-2 px-3 py-1 text-sm leading-6">
                             {{ __('auth.changePassword') }}
                         </a>
@@ -135,13 +129,15 @@
 
             </div>
             <div class="overflow-y-auto flex-1 p-6">
+                @if (session('success'))
+                    <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 4000)" x-show="show" x-transition
+                        class="mb-4 rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800" role="status">
+                        {{ session('success') }}
+                    </div>
+                @endif
                 @yield('content')
             </div>
         </div>
     </div>
-    <script>
-        function changeLanguage(lang) {
-            window.location = '{{ url('change-language') }}/' + lang;
-        }
-    </script>
+    @stack('scripts')
 @endsection

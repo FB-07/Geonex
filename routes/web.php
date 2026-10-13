@@ -17,9 +17,9 @@ Route::get('', fn() => to_route('map.index'));
 
 Route::middleware(['web', Language::class])->group(function () {
 
-    Route::get('/change-language/{lang}', [AuthController::class, 'changeLang']);
+    Route::get('/change-language/{lang}', [AuthController::class, 'changeLang'])->whereIn('lang', ['en', 'pt']);
     Route::get('/login', [AuthController::class, 'create'])->name('login');
-    Route::post('/login', [AuthController::class, 'store']);
+    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:5,1');
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
     Route::middleware('auth')->group(function () {

@@ -2,8 +2,8 @@
     <thead>
         <tr>
             {{ $head }}
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                AÇÕES
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 uppercase">
+                {{ __('technical.actions') }}
             </th>
         </tr>
     </thead>

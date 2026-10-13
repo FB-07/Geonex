@@ -21,8 +21,11 @@ class DistritoController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $distritos = Distrito::orderBy('id')
-            ->paginate($perPage);
+        $distritos = Distrito::query()
+            ->when($request->filled('q'), fn ($q) => $q->where('nome', 'like', '%' . $request->q . '%'))
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return view('distritos.index', compact('distritos'));
     }

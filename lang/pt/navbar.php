@@ -37,9 +37,9 @@ return [
 
     'places' => 'Locais',
     'distri' => 'Distritos',
-    'munici' => 'Municipios',
+    'munici' => 'Municípios',
     'parish' => 'Freguesias',
-    'cp' => 'Codigo-Postal',
+    'cp' => 'Código Postal',
     'p_interest' => 'Pontos de interesse',
 
     'features' => 'Funcionalidades',

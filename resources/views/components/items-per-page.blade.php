@@ -1,4 +1,9 @@
 <div class="flex items-center gap-2">
+        @foreach (request()->except($name, 'page') as $key => $value)
+            @if (is_scalar($value))
+                <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+            @endif
+        @endforeach
     <label for="{{ $name }}" class="text-sm font-semibold text-gray-900">
         {{ __('index.resultsPerPage') }}
     </label>

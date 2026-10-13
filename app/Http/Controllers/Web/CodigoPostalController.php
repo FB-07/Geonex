@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Web;
 
 use App\Models\CodigoPostal;
+use App\Models\Distrito;
 use App\Models\Freguesia;
+use App\Models\Municipio;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -22,10 +24,27 @@ class CodigoPostalController extends Controller
     {
         $perPage = $this->perPage($request);
 
-        $cps = CodigoPostal::orderBy('codigo')
-            ->paginate($perPage);
+        $cps = CodigoPostal::with('freguesia.municipio.distrito')
+            ->when($request->filled('q'), fn ($q) => $q->where('codigo', 'like', '%' . $request->q . '%'))
+            ->when($request->filled('distrito_id'), fn ($q) => $q->whereHas('freguesia.municipio', fn ($m) => $m->where('distrito_id', $request->distrito_id)))
+            ->when($request->filled('municipio_id'), fn ($q) => $q->whereHas('freguesia', fn ($f) => $f->where('municipio_id', $request->municipio_id)))
+            ->when($request->filled('freguesia_id'), fn ($q) => $q->where('freguesia_id', $request->freguesia_id))
+            ->orderBy('codigo')
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('cp.index', compact('cps'));
+        $distritos = Distrito::orderBy('nome')->pluck('nome', 'id');
+        $municipios = Municipio::query()
+            ->when($request->filled('distrito_id'), fn ($q) => $q->where('distrito_id', $request->distrito_id))
+            ->orderBy('nome')
+            ->pluck('nome', 'id');
+        $freguesias = Freguesia::query()
+            ->when($request->filled('municipio_id'), fn ($q) => $q->where('municipio_id', $request->municipio_id))
+            ->when(! $request->filled('municipio_id') && $request->filled('distrito_id'), fn ($q) => $q->whereHas('municipio', fn ($m) => $m->where('distrito_id', $request->distrito_id)))
+            ->orderBy('nome')
+            ->pluck('nome', 'id');
+
+        return view('cp.index', compact('cps', 'distritos', 'municipios', 'freguesias'));
     }
 
     public function edit(CodigoPostal $codigo_postal)

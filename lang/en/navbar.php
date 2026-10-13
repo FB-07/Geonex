@@ -39,7 +39,7 @@ return [
     'distri' => 'Districts',
     'munici' => 'Municipalities',
     'parish' => 'Parishes',
-    'cp' => 'Zip-Code',
+    'cp' => 'Zip Code',
     'p_interest' => 'Points of interest',
 
     'features' => 'Features',
