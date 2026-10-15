@@ -9,15 +9,6 @@ use Illuminate\Http\Request;
 
 class FreguesiaController extends Controller
 {
-    private function perPage(Request $request): int
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
-
-        return max((int) $request->session()->get('resultsPerPage', 10), 1);
-    }
-
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
@@ -58,21 +49,25 @@ class FreguesiaController extends Controller
             ->exists();
 
         if ($exists) {
-            return back()->withErrors(['nome' => 'Já existe uma freguesia com esse nome nesse município.'])
+            return back()->withErrors(['nome' => __('technical.flash.freguesia.duplicate')])
                 ->withInput();
         }
 
         $freguesia->update($data);
 
         return redirect()->route('freguesias.index')
-            ->with('success', 'Freguesia atualizada com sucesso.');
+            ->with('success', __('technical.flash.freguesia.updated'));
     }
 
     public function destroy(Freguesia $freguesia)
     {
+        if ($freguesia->codigosPostais()->exists()) {
+            return back()->with('error', __('technical.flash.freguesia.inUse'));
+        }
+
         $freguesia->delete();
 
         return redirect()->route('freguesias.index')
-            ->with('success', 'Freguesia apagada com sucesso.');
+            ->with('success', __('technical.flash.freguesia.deleted'));
     }
 }

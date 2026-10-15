@@ -8,15 +8,6 @@ use Illuminate\Http\Request;
 
 class MunicipioController extends Controller
 {
-    private function perPage(Request $request): int
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
-
-        return max((int) $request->session()->get('resultsPerPage', 10), 1);
-    }
-
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
@@ -52,21 +43,25 @@ class MunicipioController extends Controller
             ->exists();
 
         if ($exists) {
-            return back()->withErrors(['nome' => 'Já existe um município com esse nome neste distrito.'])
+            return back()->withErrors(['nome' => __('technical.flash.municipio.duplicate')])
                 ->withInput();
         }
 
         $municipio->update($data);
 
         return redirect()->route('municipios.index')
-            ->with('success', 'Município atualizado com sucesso.');
+            ->with('success', __('technical.flash.municipio.updated'));
     }
 
     public function destroy(Municipio $municipio)
     {
+        if ($municipio->freguesias()->exists()) {
+            return back()->with('error', __('technical.flash.municipio.inUse'));
+        }
+
         $municipio->delete();
 
         return redirect()->route('municipios.index')
-            ->with('success', 'Município apagado com sucesso.');
+            ->with('success', __('technical.flash.municipio.deleted'));
     }
 }

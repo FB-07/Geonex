@@ -11,15 +11,6 @@ use Illuminate\Validation\Rule;
 
 class CodigoPostalController extends Controller
 {
-    private function perPage(Request $request): int
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
-
-        return max((int) $request->session()->get('resultsPerPage', 10), 1);
-    }
-
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
@@ -66,7 +57,7 @@ class CodigoPostalController extends Controller
         $codigo_postal->update($data);
 
         return redirect()->route('codigos-postais.index')
-            ->with('success', 'Código postal atualizado com sucesso.');
+            ->with('success', __('technical.flash.codigo_postal.updated'));
     }
 
     public function destroy(CodigoPostal $codigo_postal)
@@ -74,6 +65,6 @@ class CodigoPostalController extends Controller
         $codigo_postal->delete();
 
         return redirect()->route('codigos-postais.index')
-            ->with('success', 'Código postal apagado com sucesso.');
+            ->with('success', __('technical.flash.codigo_postal.deleted'));
     }
 }

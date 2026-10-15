@@ -58,5 +58,5 @@ Route::middleware(['web', Language::class])->group(function () {
 });
 
 Route::fallback(function () {
-    return view('404/index');
+    return response()->view('404/index', [], 404);
 });

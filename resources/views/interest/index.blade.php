@@ -64,7 +64,7 @@
                                 </div>
                             </summary>
 
-                            <form method="POST" action="{{ route('interest.place.detach', $g->id) }}" onsubmit="return confirm('Remover locais selecionados?')">
+                            <form method="POST" action="{{ route('interest.place.detach', $g->id) }}" onsubmit="return confirm(@js(__('interest.confirmDetach')))">
                                 @csrf
                                 @method('DELETE')
 

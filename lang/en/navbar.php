@@ -13,7 +13,7 @@ return [
     */
 
     'operador'  => 'Operator',
-    'dashboard' => 'Dashboard',
+    'dashboard' => 'Map',
     'users'     => 'Users',
     'corporateTV' => 'Corporate TV',
     'appointments' => 'Appointments',

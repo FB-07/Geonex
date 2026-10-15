@@ -38,6 +38,11 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
+            $user = Auth::user();
+            if (app('hash')->needsRehash($user->gfuser_password)) {
+                $user->forceFill(['gfuser_password' => app('hash')->make($request->password)])->save();
+            }
+
             return redirect()->intended('map')
                 ->with('success', trans('auth.loginSuccess'));
         }

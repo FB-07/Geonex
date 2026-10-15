@@ -210,7 +210,7 @@ class PointsInterestController extends Controller
         }
 
         return redirect()->route('interest.index')
-            ->with('success', 'Ponto de Interesse criado com sucesso.');
+            ->with('success', __('interest.created'));
     }
 
     public function edit($nome)
@@ -276,7 +276,7 @@ class PointsInterestController extends Controller
 
         if (!$poi) {
             return redirect()->route('interest.index')
-                ->withErrors(['nome' => 'POI não encontrado.']);
+                ->withErrors(['nome' => __('interest.notFound')]);
         }
 
         return view('interest.edit', ['poi' => $poi, 'icons' => $icons]);
@@ -299,7 +299,7 @@ class PointsInterestController extends Controller
 
         if (!$poi) {
             return redirect()->route('interest.index')
-                ->withErrors(['nome' => 'POI não encontrado.']);
+                ->withErrors(['nome' => __('interest.notFound')]);
         }
 
         if ($request->hasFile('image')) {
@@ -319,7 +319,7 @@ class PointsInterestController extends Controller
         ]);
 
         return redirect()->route('interest.index')
-            ->with('success', 'POI atualizado com sucesso.');
+            ->with('success', __('interest.updated'));
     }
 
     public function addPlacesForm($nome)
@@ -398,7 +398,7 @@ class PointsInterestController extends Controller
         }
 
         return redirect()->route('interest.index')
-            ->with('success', 'Locais adicionados com sucesso.');
+            ->with('success', __('interest.placesAdded'));
     }
 
     public function detachPlace(Request $request, $poiId)
@@ -415,7 +415,7 @@ class PointsInterestController extends Controller
             $poi->places()->detach($places);
         }
 
-        return redirect()->back()->with('success', 'Locais removidos com sucesso.');
+        return redirect()->back()->with('success', __('interest.placesRemoved'));
     }
 
     public function destroy($nome)
@@ -434,7 +434,7 @@ class PointsInterestController extends Controller
         }
 
         return redirect()->route('interest.index')
-            ->with('success', 'POI apagado com sucesso.');
+            ->with('success', __('interest.deleted'));
     }
 
     public function names(Request $request)

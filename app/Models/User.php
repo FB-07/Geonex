@@ -12,6 +12,15 @@ class User extends Authenticatable
 
     public $timestamps = false;
 
+    protected $fillable = [
+        'gfuser_active',
+        'gfuser_alias',
+        'gfuser_fullname',
+        'gfuser_password',
+        'gfuser_sex',
+        'gfuser_email',
+    ];
+
     protected $hidden = [
         'gfuser_password',
     ];

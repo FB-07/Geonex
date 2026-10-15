@@ -8,6 +8,9 @@ return [
         'geoInsecure' => 'A geolocalização só funciona em HTTPS ou localhost.',
         'geoDenied' => 'Permissão de localização negada. Ative-a nas definições do browser e do sistema.',
         'geoTimeout' => 'O pedido de localização demorou demasiado.',
+        'noRecent' => 'Não há recentes',
+        'noPoi' => 'Não há pontos de interesse',
+        'unnamed' => 'Sem nome',
         'geoUnavailable' => 'Não foi possível obter a sua localização.',
     ],
 ];

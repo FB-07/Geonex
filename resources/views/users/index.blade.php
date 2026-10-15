@@ -34,10 +34,6 @@
                         class="hidden px-3 py-3.5 text-left text-sm font-semibold text-gray-900 xl:table-cell">
                         {{ __('users.email') }}
                     </th>
-                    <th scope="col"
-                        class="hidden px-3 py-3.5 text-left text-sm font-semibold text-gray-900 xl:table-cell">
-                        {{ __('users.type') }}
-                    </th>
 
                 </tr>
             </thead>
@@ -57,14 +53,17 @@
                             <a href="{{ route('users.edit', $user->gfuser_id) }}"
                                 class="text-proximo-600 hover:text-proximo-900">
                                 {{ __('users.edit') }}</a>
-                            <div>|</div>
-                            <form action="{{ route('users.destroy', $user->gfuser_id) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-proximo-600 hover:text-proximo-900">
-                                    {{ __('users.delete') }}
-                                </button>
-                            </form>
+                            @if ((string) $user->gfuser_id !== (string) auth()->id())
+                                <div>|</div>
+                                <form action="{{ route('users.destroy', $user->gfuser_id) }}" method="POST"
+                                    onsubmit="return confirm(@js(__('users.confirmDelete')))">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-proximo-600 hover:text-proximo-900">
+                                        {{ __('users.delete') }}
+                                    </button>
+                                </form>
+                            @endif
 
                         </td>
                     </tr>

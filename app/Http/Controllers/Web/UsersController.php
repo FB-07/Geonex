@@ -7,6 +7,7 @@ use App\Services\MD5Hasher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class UsersController extends Controller
 {
@@ -41,13 +42,12 @@ class UsersController extends Controller
     public function store()
     {
         $attributes = request()->validate([
-            'active' => ['required'],
+            'active' => ['required', 'in:0,1'],
             'username' => ['required', 'unique:App\Models\User,gfuser_alias', 'max:25'],
             'fullname' => ['required', 'max:255'],
-            'password' => ['required', 'max:64'],
-            'password_confirmation' => ['required', 'max:64'],
+            'password' => ['required', 'confirmed', 'min:8', 'max:64'],
             'email' => ['required', 'email', 'unique:App\Models\User,gfuser_email', 'max:200'],
-            'sex' => ['required'],
+            'sex' => ['required', 'in:M,F'],
         ]);
 
         $hasher = new MD5Hasher();
@@ -61,7 +61,7 @@ class UsersController extends Controller
             'gfuser_email' => $attributes['email'],
         ]);
 
-        return redirect('/users')->with('success', 'Profile created successfully');
+        return redirect('/users')->with('success', __('users.created'));
     }
 
     public function edit(string $id)
@@ -74,11 +74,12 @@ class UsersController extends Controller
     public function update(string $id)
     {
         $attributes = request()->validate([
-            'active' => ['required'],
-            'username' => ['required', 'max:25'],
+            'active' => ['required', 'in:0,1'],
+            'username' => ['required', 'max:25', Rule::unique('users', 'gfuser_alias')->ignore($id, 'gfuser_id')],
             'fullname' => ['required', 'max:255'],
-            'email' => ['required', 'email', 'max:200'],
-            'sex' => ['required'],
+            'email' => ['required', 'email', 'max:200', Rule::unique('users', 'gfuser_email')->ignore($id, 'gfuser_id')],
+            'sex' => ['required', 'in:M,F'],
+            'password' => ['nullable', 'confirmed', 'min:8', 'max:64'],
         ]);
 
         $user = User::findOrFail($id);
@@ -92,9 +93,11 @@ class UsersController extends Controller
             'gfuser_sex' => $attributes['sex'],
         ]);
 
-        //ddd($attributes);
+        if (! empty($attributes['password'])) {
+            $user->update(['gfuser_password' => (new MD5Hasher())->make($attributes['password'])]);
+        }
 
-        return redirect('/users')->with('success', 'Profile updated successfully');
+        return redirect('/users')->with('success', __('users.updated'));
     }
 
     /**
@@ -102,8 +105,12 @@ class UsersController extends Controller
      */
     public function destroy(string $id)
     {
+        if ((string) Auth::id() === $id) {
+            return back()->with('error', __('users.cannotDeleteSelf'));
+        }
+
         User::findOrFail($id)->delete();
 
-        return redirect('/users')->with('success', 'Profile deleted successfully');
+        return redirect('/users')->with('success', __('users.deleted'));
     }
 }

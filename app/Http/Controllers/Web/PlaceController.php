@@ -12,15 +12,6 @@ use Illuminate\Validation\Rule;
 
 class PlaceController extends Controller
 {
-    private function perPage(Request $request): int
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
-
-        return max((int) $request->session()->get('resultsPerPage', 10), 1);
-    }
-
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
@@ -66,7 +57,7 @@ class PlaceController extends Controller
         $place->update($data);
 
         return redirect()->route('places.index')
-            ->with('success', 'Place atualizado com sucesso.');
+            ->with('success', __('technical.flash.place.updated'));
     }
 
     public function destroy(Place $place)
@@ -74,6 +65,6 @@ class PlaceController extends Controller
         $place->delete();
 
         return redirect()->route('places.index')
-            ->with('success', 'Place apagado com sucesso.');
+            ->with('success', __('technical.flash.place.deleted'));
     }
 }

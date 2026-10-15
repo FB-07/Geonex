@@ -8,15 +8,6 @@ use Illuminate\Validation\Rule;
 
 class DistritoController extends Controller
 {
-    private function perPage(Request $request): int
-    {
-        if ($request->filled('resultsPerPage')) {
-            $request->session()->put('resultsPerPage', (int) $request->input('resultsPerPage'));
-        }
-
-        return max((int) $request->session()->get('resultsPerPage', 10), 1);
-    }
-
     public function index(Request $request)
     {
         $perPage = $this->perPage($request);
@@ -47,14 +38,18 @@ class DistritoController extends Controller
         $distrito->update($data);
 
         return redirect()->route('distritos.index')
-            ->with('success', 'Distrito atualizado com sucesso.');
+            ->with('success', __('technical.flash.distrito.updated'));
     }
 
     public function destroy(Distrito $distrito)
     {
+        if ($distrito->municipios()->exists()) {
+            return back()->with('error', __('technical.flash.distrito.inUse'));
+        }
+
         $distrito->delete();
 
         return redirect()->route('distritos.index')
-            ->with('success', 'Distrito apagado com sucesso.');
+            ->with('success', __('technical.flash.distrito.deleted'));
     }
 }

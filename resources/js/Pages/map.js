@@ -77,7 +77,7 @@ function renderRecents() {
   if (!recents.length) {
     const row = document.createElement("div");
     row.className = "p-2 text-gray-500 text-sm italic";
-    row.textContent = "Não há recentes";
+    row.textContent = window.APP?.i18n?.noRecent ?? "Não há recentes";
     container.appendChild(row);
     return;
   }
@@ -340,7 +340,7 @@ async function searchPlacesByTerm(query, { fitBounds = true, save = true } = {})
     const marker = new google.maps.Marker({
       map,
       position: pos,
-      title: p.name || "Sem nome",
+      title: p.name || window.APP?.i18n?.unnamed || "Sem nome",
       icon: makeMarkerIcon(query),
     });
 
@@ -784,7 +784,7 @@ function renderPOI(names, loading = false) {
   if (!names.length) {
     const row = document.createElement("div");
     row.className = "p-2 text-gray-500 text-sm italic";
-    row.textContent = "Não há pontos de interesse";
+    row.textContent = window.APP?.i18n?.noPoi ?? "Não há pontos de interesse";
     container.appendChild(row);
     return;
   }

@@ -13,7 +13,7 @@ return [
     */
 
     'operador' => 'Operador',
-    'dashboard' => 'Painel',
+    'dashboard' => 'Mapa',
     'users' => 'Utilizadores',
     'applications' => 'Aplicações',
     'corporateTV' => 'Corporate TV',
